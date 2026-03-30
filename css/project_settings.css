@@ -1,0 +1,657 @@
+#project-settings-page {
+    width: 100%;
+}
+
+#project-settings-page .settings-layout {
+    grid-template-columns: 1fr;
+    width: 100%;
+}
+
+#project-settings-page .settings-panel {
+    min-height: 260px;
+}
+
+/* Action Buttons */
+.building-actions, .floor-actions, .apt-actions {
+    display: flex;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.action-btn {
+    padding: 6px 8px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.action-btn.edit-btn {
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+}
+
+.action-btn.edit-btn:hover {
+    background: rgba(16, 185, 129, 0.3);
+    color: #d1fae5;
+    transform: translateY(-1px);
+}
+
+.simple-work-types-card .card-header {
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.simple-work-types-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.simple-work-types-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #60a5fa;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(99, 102, 241, 0.12));
+    border: 1px solid rgba(96, 165, 250, 0.2);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.simple-work-types-icon i {
+    font-size: 1.1rem;
+}
+
+.simple-work-types-card .card-header h2 {
+    margin: 0;
+    color: #fff;
+    font-size: 1.12rem;
+}
+
+.simple-work-types-card .card-header p {
+    margin: 6px 0 0 0;
+    color: #94a3b8;
+    font-size: 0.88rem;
+    max-width: 620px;
+}
+
+.simple-work-types-count {
+    padding: 7px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(96, 165, 250, 0.2);
+    background: rgba(59, 130, 246, 0.1);
+    color: #bfdbfe;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.simple-work-types-layout {
+    display: grid;
+    grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.4fr);
+    gap: 18px;
+    align-items: start;
+}
+
+.simple-work-type-create-panel,
+.simple-work-type-list-panel {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 18px;
+}
+
+.simple-panel-head {
+    margin-bottom: 14px;
+}
+
+.simple-panel-kicker {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(59, 130, 246, 0.12);
+    border: 1px solid rgba(96, 165, 250, 0.18);
+    color: #93c5fd;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.simple-panel-head h3 {
+    margin: 10px 0 6px;
+    color: #fff;
+    font-size: 1rem;
+}
+
+.simple-panel-head p {
+    margin: 0;
+    color: #94a3b8;
+    font-size: 0.86rem;
+    line-height: 1.5;
+}
+
+.simple-work-type-form-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: end;
+    padding: 16px;
+    margin-bottom: 0;
+}
+
+.simple-work-type-submit {
+    min-width: 170px;
+    height: 44px;
+}
+
+.simple-work-type-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 0;
+}
+
+.simple-work-type-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.03));
+    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.simple-work-type-row:hover {
+    transform: translateY(-1px);
+    border-color: rgba(96, 165, 250, 0.25);
+    background: linear-gradient(135deg, rgba(96, 165, 250, 0.09), rgba(255, 255, 255, 0.04));
+}
+
+.simple-work-type-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.simple-work-type-meta strong {
+    color: #fff;
+    font-size: 0.97rem;
+    letter-spacing: 0.01em;
+}
+
+.simple-work-type-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.simple-work-type-copy span {
+    color: #94a3b8;
+    font-size: 0.8rem;
+}
+
+.simple-work-type-badge {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #60a5fa;
+    background: rgba(59, 130, 246, 0.12);
+    border: 1px solid rgba(96, 165, 250, 0.22);
+    flex-shrink: 0;
+}
+
+.simple-work-type-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 28px 16px;
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.simple-work-type-empty i {
+    color: #60a5fa;
+    font-size: 1.2rem;
+    opacity: 0.9;
+}
+
+.simple-work-type-empty p {
+    margin: 0;
+    color: #94a3b8;
+}
+
+/* Dynamic Work Type Configuration */
+.work-types-config-card {
+    margin-top: 24px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    padding: 18px;
+}
+
+.work-types-config-card .card-header {
+    margin-bottom: 14px;
+}
+
+.work-types-config-card .card-header h2 {
+    margin: 0;
+    color: #fff;
+    font-size: 1.05rem;
+}
+
+.work-types-config-card .card-header p {
+    margin: 6px 0 0 0;
+    color: #94a3b8;
+    font-size: 0.88rem;
+}
+
+.work-type-form {
+    margin-bottom: 16px;
+}
+
+.work-type-form-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(140px, 1fr));
+    gap: 12px;
+}
+
+.work-type-form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.work-type-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.work-type-item-card {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.04);
+    overflow: hidden;
+}
+
+.work-type-item-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    background: rgba(59, 130, 246, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.work-type-item-head h3 {
+    margin: 0;
+    color: #fff;
+    font-size: 0.98rem;
+}
+
+.work-type-item-head p {
+    margin: 6px 0 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.wt-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+    color: #dbeafe;
+    font-size: 0.74rem;
+}
+
+.work-type-item-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.work-type-fields-table-wrap {
+    border-radius: 0;
+    margin: 0;
+}
+
+.work-type-fields-table th,
+.work-type-fields-table td {
+    white-space: nowrap;
+}
+
+.field-actions-cell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.work-type-field-form {
+    padding: 12px 14px 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.work-type-field-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 0.8fr 0.8fr 0.7fr 0.5fr auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.work-type-field-grid input,
+.work-type-field-grid select {
+    width: 100%;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 0.86rem;
+    box-sizing: border-box;
+}
+
+.work-type-field-grid input:focus,
+.work-type-field-grid select:focus {
+    outline: none;
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+}
+
+.work-type-field-grid select option {
+    background: #0f172a;
+    color: #fff;
+}
+
+.checkbox-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #cbd5e1;
+    font-size: 0.82rem;
+}
+
+.work-type-field-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .work-type-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .work-type-form-actions,
+    .work-type-field-actions {
+        flex-direction: column;
+    }
+
+    .work-type-field-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .building-actions, .floor-actions, .apt-actions {
+        gap: 4px;
+    }
+
+    .action-btn {
+        padding: 4px 6px;
+        font-size: 0.75rem;
+    }
+
+    .modal-content {
+        margin: 20px;
+        padding: 20px;
+    }
+}
+
+/* ================================================================
+   Work Types (simple row design)
+   ================================================================ */
+#project-settings-page #work-types-settings-section {
+    margin-top: 18px;
+    gap: 8px;
+}
+
+#project-settings-page #work-types-settings-section .settings-panel .panel-card {
+    border-radius: 14px;
+    border: 1px solid rgba(96, 165, 250, 0.22);
+    background: linear-gradient(180deg, rgba(59, 130, 246, 0.1), rgba(15, 23, 42, 0.12));
+}
+
+#project-settings-page #work-types-settings-section .settings-form {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    align-items: end;
+}
+
+#project-settings-page #work-types-settings-section .settings-form .form-group {
+    margin-bottom: 0;
+}
+
+#project-settings-page #work-types-settings-section .settings-form .btn {
+    min-height: 42px;
+    min-width: 150px;
+}
+
+#project-settings-page #work-types-settings-section .buildings-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+#project-settings-page #work-types-settings-section .work-categories-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+    padding: 4px 2px;
+}
+
+#project-settings-page #work-types-settings-section .work-categories-head h3 {
+    margin: 0;
+    font-size: 0.94rem;
+    color: #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#project-settings-page #work-types-settings-section .work-categories-head h3 i {
+    color: #60a5fa;
+}
+
+#project-settings-page #work-types-settings-section .work-categories-count {
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: #bfdbfe;
+    border: 1px solid rgba(96, 165, 250, 0.3);
+    background: rgba(59, 130, 246, 0.12);
+}
+
+#project-settings-page #work-types-settings-section .work-type-card {
+    margin: 0;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.45), rgba(15, 23, 42, 0.3));
+    overflow: hidden;
+    height: 100%;
+    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+#project-settings-page #work-types-settings-section .work-type-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(96, 165, 250, 0.45);
+    background: linear-gradient(180deg, rgba(37, 99, 235, 0.22), rgba(15, 23, 42, 0.3));
+    box-shadow: 0 8px 24px rgba(2, 6, 23, 0.25);
+}
+
+#project-settings-page #work-types-settings-section .work-type-header {
+    display: block;
+    padding: 15px;
+    min-height: 0;
+    border-left: 3px solid rgba(96, 165, 250, 0.85);
+    background: transparent;
+}
+
+#project-settings-page #work-types-settings-section .work-type-card-content {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#project-settings-page #work-types-settings-section .work-type-top-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+#project-settings-page #work-types-settings-section .work-type-title {
+    margin: 0;
+    color: #fff;
+    font-size: 1.02rem;
+    line-height: 1.35;
+    letter-spacing: 0.01em;
+    word-break: break-word;
+}
+
+#project-settings-page #work-types-settings-section .work-type-key {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+    max-width: 100%;
+    padding: 5px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    background: rgba(15, 23, 42, 0.22);
+    color: #cbd5e1;
+    font-size: 0.76rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+#project-settings-page #work-types-settings-section .work-type-key i {
+    color: #93c5fd;
+}
+
+#project-settings-page #work-types-settings-section .work-type-category-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(96, 165, 250, 0.28);
+    background: rgba(59, 130, 246, 0.12);
+    color: #bfdbfe;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+#project-settings-page #work-types-settings-section .work-type-header .building-info {
+    min-width: 0;
+}
+
+#project-settings-page #work-types-settings-section .work-type-header .building-actions {
+    margin-left: 0;
+    display: flex;
+    align-items: center;
+}
+
+#project-settings-page #work-types-settings-section .work-type-header .action-btn.delete-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+    border: 1px solid rgba(239, 68, 68, 0.55);
+    background: rgba(239, 68, 68, 0.18);
+    color: #fecaca;
+}
+
+#project-settings-page #work-types-settings-section .work-type-header .action-btn.delete-btn:hover {
+    background: rgba(239, 68, 68, 0.3);
+    border-color: rgba(248, 113, 113, 0.95);
+    color: #fff;
+    transform: translateY(-1px);
+}
+
+@media (max-width: 900px) {
+    #project-settings-page #work-types-settings-section .settings-form {
+        grid-template-columns: 1fr;
+    }
+
+    #project-settings-page #work-types-settings-section .settings-form .btn {
+        width: 100%;
+    }
+
+    #project-settings-page #work-types-settings-section .buildings-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    #project-settings-page #work-types-settings-section .buildings-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Single-container mode for Work Types section */
+#project-settings-page #work-types-settings-section {
+    grid-template-columns: 1fr !important;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.38), rgba(15, 23, 42, 0.3));
+    padding: 16px;
+}
+
+#project-settings-page #work-types-settings-section .settings-panel,
+#project-settings-page #work-types-settings-section .buildings-panel {
+    width: 100%;
+}
+
+#project-settings-page #work-types-settings-section .settings-panel {
+    margin-bottom: 6px;
+}
+
+#project-settings-page #work-types-settings-section .settings-panel .panel-card,
+#project-settings-page #work-types-settings-section .buildings-panel .buildings-list {
+    border: none;
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
+}

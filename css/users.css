@@ -1,0 +1,28 @@
+#users-page {
+    width: 100%;
+}
+
+.users-panel, .user-form-panel, .user-table-panel {
+    background: rgba(24, 35, 67, 0.64);
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    backdrop-filter: blur(10px);
+}
+
+#users-page .data-table {
+    border-radius: 10px;
+    overflow: hidden;
+    width: 100%;
+}
+
+#users-page .form-control,
+#users-page .filter-control {
+    width: 100%;
+    max-width: 350px;
+    margin-bottom: 0.9rem;
+}
+
+#users-page .form-actions {
+    display: flex;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+}

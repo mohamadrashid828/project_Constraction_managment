@@ -1,0 +1,528 @@
+#stakeholders-page {
+    width: 100%;
+}
+
+#stakeholders-page .stakeholders-layout {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 18px;
+}
+
+#stakeholders-page .panel-card {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    padding: 16px;
+}
+
+#stakeholders-page .card-header h2 {
+    margin: 0;
+    color: #fff;
+    font-size: 1rem;
+}
+
+#stakeholders-page .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+#stakeholders-page .form-group label {
+    color: #cbd5e1;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+#stakeholders-page .form-group input,
+#stakeholders-page .form-group select,
+#stakeholders-page .subpart-inline-form input,
+#stakeholders-page .subpart-add-form input,
+#stakeholders-page .subpart-add-form select {
+    width: 100%;
+    padding: 9px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 0.92rem;
+    box-sizing: border-box;
+}
+
+#stakeholders-page .form-group input:focus,
+#stakeholders-page .form-group select:focus,
+#stakeholders-page .subpart-inline-form input:focus,
+#stakeholders-page .subpart-add-form input:focus,
+#stakeholders-page .subpart-add-form select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+#stakeholders-page .form-group select option {
+    background: #0f172a;
+    color: #fff;
+}
+
+/* ── Remove number spinners — allow manual typing ──────────────── */
+#stakeholders-page input[type='number'] {
+    -webkit-appearance: textfield;
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+#stakeholders-page input[type='number']::-webkit-inner-spin-button,
+#stakeholders-page input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+#stakeholders-page .form-actions {
+    display: flex;
+    gap: 10px;
+}
+
+#stakeholders-page .stakeholder-payment-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+#stakeholders-page #stakeholder-form .form-actions {
+    margin-top: 10px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+#stakeholders-page #stakeholder-form .form-actions .btn {
+    min-height: 42px;
+    border-radius: 10px;
+    justify-content: center;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+#stakeholders-page #stakeholder-form .form-actions .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px rgba(59, 130, 246, 0.28);
+}
+
+#stakeholders-page #stakeholder-form .form-actions .btn-secondary {
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: rgba(15, 23, 42, 0.36);
+    color: #e2e8f0;
+}
+
+#stakeholders-page #stakeholder-form .form-actions .btn-secondary:hover {
+    background: rgba(51, 65, 85, 0.55);
+    border-color: rgba(148, 163, 184, 0.65);
+    transform: translateY(-1px);
+}
+
+#stakeholders-page .stakeholder-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 10px;
+}
+
+#stakeholders-page .stakeholder-filters-card {
+    margin-top: 10px;
+    margin-bottom: 12px;
+    padding: 0;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+#stakeholders-page .quick-filter-shell {
+    padding: 12px;
+}
+
+#stakeholders-page .quick-filter-title-row {
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+#stakeholders-page .quick-filter-title-row h3 {
+    margin: 0;
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#stakeholders-page .quick-filter-title-row h3 i {
+    color: #60a5fa;
+}
+
+#stakeholders-page .quick-filter-grid {
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) minmax(230px, 280px) auto;
+    gap: 12px;
+    align-items: end;
+}
+
+#stakeholders-page .quick-filter-item {
+    min-width: 0;
+}
+
+#stakeholders-page .quick-filter-grid .form-group {
+    margin-bottom: 0;
+}
+
+#stakeholders-page .quick-filter-grid .form-group input,
+#stakeholders-page .quick-filter-grid .form-group select {
+    min-height: 40px;
+}
+
+#stakeholders-page .quick-filter-actions {
+    display: flex;
+    align-items: flex-end;
+}
+
+#stakeholders-page .quick-filter-actions .btn {
+    min-height: 40px;
+    padding-left: 14px;
+    padding-right: 14px;
+}
+
+#stakeholders-page #stakeholder-filter-clear {
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    background: rgba(239, 68, 68, 0.12);
+    color: #fecaca;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+#stakeholders-page #stakeholder-filter-clear i {
+    color: #f87171;
+}
+
+#stakeholders-page #stakeholder-filter-clear:hover {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.95), rgba(220, 38, 38, 0.95));
+    border-color: transparent;
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(239, 68, 68, 0.35);
+}
+
+#stakeholders-page #stakeholder-filter-clear:hover i {
+    color: #fff;
+}
+
+#stakeholders-page .quick-filter-footer {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+#stakeholders-page .filter-result-text {
+    margin: 0;
+    color: #94a3b8;
+    font-size: 0.82rem;
+}
+
+#stakeholders-page .stakeholder-card {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    overflow: hidden;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
+    box-shadow: 0 10px 24px rgba(2, 6, 23, 0.22);
+}
+
+#stakeholders-page .stakeholder-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.16), rgba(15, 23, 42, 0.14));
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#stakeholders-page .stakeholder-head h3 {
+    margin: 0;
+    color: #fff;
+    font-size: 0.98rem;
+}
+
+#stakeholders-page .stakeholder-head p {
+    margin: 6px 0 0 0;
+    color: #cbd5e1;
+    font-size: 0.8rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+#stakeholders-page .stakeholder-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 600;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(15, 23, 42, 0.24);
+    color: #e2e8f0;
+}
+
+#stakeholders-page .stakeholder-worktype-badge {
+    border-color: rgba(59, 130, 246, 0.45);
+    color: #bfdbfe;
+}
+
+#stakeholders-page .stakeholder-subparts-badge {
+    border-color: rgba(16, 185, 129, 0.45);
+    color: #bbf7d0;
+}
+
+#stakeholders-page .stakeholder-date-badge {
+    border-color: rgba(244, 114, 182, 0.45);
+    color: #fbcfe8;
+}
+
+#stakeholders-page .stakeholder-cash-badge {
+    border-color: rgba(34, 197, 94, 0.45);
+    color: #bbf7d0;
+}
+
+#stakeholders-page .stakeholder-apartment-badge {
+    border-color: rgba(245, 158, 11, 0.45);
+    color: #fde68a;
+}
+
+#stakeholders-page .stakeholder-price-badge {
+    border-color: rgba(168, 85, 247, 0.45);
+    color: #e9d5ff;
+}
+
+#stakeholders-page .stakeholder-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+#stakeholders-page .stakeholder-actions .action-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(15, 23, 42, 0.38);
+    color: #e2e8f0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.16s ease, background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+#stakeholders-page .stakeholder-actions .action-btn i {
+    pointer-events: none;
+}
+
+#stakeholders-page .stakeholder-actions .edit-btn {
+    border-color: rgba(59, 130, 246, 0.52);
+    color: #dbeafe;
+    background: rgba(59, 130, 246, 0.18);
+}
+
+#stakeholders-page .stakeholder-actions .edit-btn:hover {
+    background: rgba(59, 130, 246, 0.3);
+    border-color: rgba(96, 165, 250, 0.95);
+    box-shadow: 0 6px 14px rgba(59, 130, 246, 0.28);
+    transform: translateY(-1px);
+}
+
+#stakeholders-page .stakeholder-actions .delete-btn {
+    border-color: rgba(239, 68, 68, 0.56);
+    color: #fee2e2;
+    background: rgba(239, 68, 68, 0.2);
+}
+
+#stakeholders-page .stakeholder-actions .delete-btn:hover {
+    background: rgba(239, 68, 68, 0.32);
+    border-color: rgba(248, 113, 113, 0.95);
+    box-shadow: 0 6px 14px rgba(239, 68, 68, 0.3);
+    transform: translateY(-1px);
+}
+
+#stakeholders-page .subparts-table-wrap {
+    padding: 10px;
+}
+
+#stakeholders-page .subparts-table th,
+#stakeholders-page .subparts-table td {
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+#stakeholders-page .subparts-table {
+    width: 100%;
+    table-layout: fixed;
+}
+
+#stakeholders-page .subparts-table th:nth-child(1),
+#stakeholders-page .subparts-table td:nth-child(1) {
+    width: 38%;
+}
+
+#stakeholders-page .subparts-table th:nth-child(2),
+#stakeholders-page .subparts-table td:nth-child(2) {
+    width: 14%;
+}
+
+#stakeholders-page .subparts-table th:nth-child(3),
+#stakeholders-page .subparts-table td:nth-child(3) {
+    width: 14%;
+}
+
+#stakeholders-page .subparts-table th:nth-child(4),
+#stakeholders-page .subparts-table td:nth-child(4) {
+    width: 14%;
+}
+
+#stakeholders-page .subparts-table th:nth-child(5),
+#stakeholders-page .subparts-table td:nth-child(5) {
+    width: 20%;
+    text-align: center;
+}
+
+#stakeholders-page .subpart-inline-form {
+    display: grid;
+    grid-template-columns: 1fr 120px auto;
+    gap: 8px;
+    align-items: center;
+}
+
+#stakeholders-page .row-actions {
+    display: inline-grid;
+    grid-template-columns: repeat(2, minmax(42px, 1fr));
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+    min-width: 96px;
+}
+
+#stakeholders-page .row-actions .action-btn {
+    width: 42px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background: rgba(15, 23, 42, 0.42);
+    color: #f1f5f9;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.16s ease, background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, color 0.16s ease;
+}
+
+#stakeholders-page .row-actions .action-btn i {
+    pointer-events: none;
+}
+
+#stakeholders-page .row-actions .edit-btn {
+    border-color: rgba(59, 130, 246, 0.58);
+    color: #dbeafe;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.28), rgba(59, 130, 246, 0.2));
+}
+
+#stakeholders-page .row-actions .edit-btn:hover {
+    background: rgba(59, 130, 246, 0.25);
+    border-color: rgba(96, 165, 250, 0.9);
+    box-shadow: 0 6px 14px rgba(59, 130, 246, 0.25);
+    transform: translateY(-1px);
+}
+
+#stakeholders-page .row-actions .delete-btn {
+    border-color: rgba(239, 68, 68, 0.62);
+    color: #fee2e2;
+    background: linear-gradient(135deg, rgba(220, 38, 38, 0.32), rgba(239, 68, 68, 0.2));
+}
+
+#stakeholders-page .row-actions .delete-btn:hover {
+    background: rgba(239, 68, 68, 0.24);
+    border-color: rgba(248, 113, 113, 0.9);
+    box-shadow: 0 6px 14px rgba(239, 68, 68, 0.26);
+    transform: translateY(-1px);
+}
+
+#stakeholders-page .subpart-add-form .btn {
+    min-height: 38px;
+    font-weight: 600;
+    transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+#stakeholders-page .subpart-add-form .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 18px rgba(59, 130, 246, 0.28);
+}
+
+#stakeholders-page .subpart-add-form {
+    display: grid;
+    grid-template-columns: 38% 14% 14% 14% 20%;
+    gap: 8px;
+    align-items: center;
+    width: 100%;
+}
+
+#stakeholders-page .subpart-add-form .btn {
+    width: auto;
+    min-width: 120px;
+    justify-self: start;
+    font-size: 0.82rem;
+    padding: 8px 12px;
+}
+
+#stakeholders-page .empty-text {
+    color: #94a3b8;
+    text-align: center;
+    font-style: italic;
+    margin: 8px 0;
+}
+
+@media (max-width: 1100px) {
+    #stakeholders-page .stakeholders-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 760px) {
+    #stakeholders-page .form-actions {
+        flex-direction: column;
+    }
+
+    #stakeholders-page .stakeholder-payment-grid {
+        grid-template-columns: 1fr;
+    }
+
+    #stakeholders-page #stakeholder-form .form-actions {
+        grid-template-columns: 1fr;
+    }
+
+    #stakeholders-page .quick-filter-grid {
+        grid-template-columns: 1fr;
+    }
+
+    #stakeholders-page .quick-filter-actions {
+        width: 100%;
+    }
+
+    #stakeholders-page .quick-filter-actions .btn {
+        width: 100%;
+    }
+
+    #stakeholders-page .subpart-inline-form,
+    #stakeholders-page .subpart-add-form {
+        grid-template-columns: 1fr;
+    }
+}
