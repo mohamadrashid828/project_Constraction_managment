@@ -29,6 +29,7 @@ $message_type = 'success';
 $conn->query("CREATE TABLE IF NOT EXISTS project_work_types (
     id INT AUTO_INCREMENT PRIMARY KEY,
     work_type_name VARCHAR(120) NOT NULL,
+    work_type_name_ku VARCHAR(120) NULL,
     work_type_key VARCHAR(80) NOT NULL UNIQUE,
     quantity_unit VARCHAR(30) NOT NULL DEFAULT 'm²',
     scope_level VARCHAR(30) NOT NULL DEFAULT 'apartment',
@@ -39,6 +40,10 @@ $conn->query("CREATE TABLE IF NOT EXISTS project_work_types (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_work_type_key (work_type_key)
 )");
+// Self-heal the Kurdish-name column on pre-existing installs.
+if ($conn->query("SHOW COLUMNS FROM project_work_types LIKE 'work_type_name_ku'")->num_rows === 0) {
+    $conn->query("ALTER TABLE project_work_types ADD COLUMN work_type_name_ku VARCHAR(120) NULL AFTER work_type_name");
+}
 
 $conn->query("CREATE TABLE IF NOT EXISTS project_work_type_fields (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -61,25 +66,45 @@ $conn->query("CREATE TABLE IF NOT EXISTS project_work_type_fields (
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['save_work_type'])) {
         $work_type_name = trim($_POST['work_type_name'] ?? '');
-        $work_type_key = strtolower(preg_replace('/[^a-z0-9_]+/', '_', $work_type_name));
+        $work_type_name_ku = trim($_POST['work_type_name_ku'] ?? '');
+        // Lowercase first, then slug — otherwise an uppercase/all-caps name loses
+        // its capital letters (or slugs to an empty key and gets rejected).
+        $work_type_key = preg_replace('/[^a-z0-9_]+/', '_', strtolower($work_type_name));
         $work_type_key = trim($work_type_key, '_');
         if ($work_type_name && $work_type_key) {
             $quantity_unit = 'm²';
             $scope_level = 'apartment';
             $pricing_mode = 'per_unit';
+
+            // The English name must be unique among active categories. Checked on
+            // the name itself (case-insensitive via the column collation) rather
+            // than the derived key, since the key slug can differ for names that
+            // share letters.
+            $nameStmt = $conn->prepare("SELECT id FROM project_work_types WHERE work_type_name = ? AND is_active = 1 LIMIT 1");
+            $nameStmt->bind_param("s", $work_type_name);
+            $nameStmt->execute();
+            $nameTaken = (bool)$nameStmt->get_result()->fetch_assoc();
+            $nameStmt->close();
+
             $existingId = 0;
-            $stmt = $conn->prepare("SELECT id FROM project_work_types WHERE work_type_key = ? LIMIT 1");
+            $existingActive = false;
+            $stmt = $conn->prepare("SELECT id, is_active FROM project_work_types WHERE work_type_key = ? LIMIT 1");
             $stmt->bind_param("s", $work_type_key);
             $stmt->execute();
             $res = $stmt->get_result();
             if ($row = $res->fetch_assoc()) {
                 $existingId = (int)$row['id'];
+                $existingActive = (int)$row['is_active'] === 1;
             }
             $stmt->close();
 
-            if ($existingId > 0) {
-                $stmt = $conn->prepare("UPDATE project_work_types SET work_type_name = ?, is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
-                $stmt->bind_param("si", $work_type_name, $existingId);
+            if ($nameTaken || $existingActive) {
+                $message = 'A category named "' . $work_type_name . '" already exists.';
+                $message_type = 'error';
+            } elseif ($existingId > 0) {
+                // Re-adding a previously deleted category restores it (and its Kurdish name).
+                $stmt = $conn->prepare("UPDATE project_work_types SET work_type_name = ?, work_type_name_ku = ?, is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+                $stmt->bind_param("ssi", $work_type_name, $work_type_name_ku, $existingId);
                 if ($stmt->execute()) {
                     $message = 'Category restored successfully!';
                     $message_type = 'success';
@@ -87,9 +112,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message = 'Error restoring category.';
                     $message_type = 'error';
                 }
+                $stmt->close();
             } else {
-                $stmt = $conn->prepare("INSERT INTO project_work_types (work_type_name, work_type_key, quantity_unit, scope_level, pricing_mode, created_by) VALUES (?, ?, ?, ?, ?, ?)");
-                $stmt->bind_param("sssssi", $work_type_name, $work_type_key, $quantity_unit, $scope_level, $pricing_mode, $user_id);
+                $stmt = $conn->prepare("INSERT INTO project_work_types (work_type_name, work_type_name_ku, work_type_key, quantity_unit, scope_level, pricing_mode, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param("ssssssi", $work_type_name, $work_type_name_ku, $work_type_key, $quantity_unit, $scope_level, $pricing_mode, $user_id);
                 if ($stmt->execute()) {
                     $message = 'Category created successfully!';
                     $message_type = 'success';
@@ -97,8 +123,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message = 'Error creating category (name may already exist).';
                     $message_type = 'error';
                 }
+                $stmt->close();
             }
-            $stmt->close();
         } else {
             $message = 'Please enter a category name.';
             $message_type = 'error';
@@ -132,16 +158,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $comments = trim($_POST['comments']);
 
         if ($building_name && $total_area > 0) {
-            $stmt = $conn->prepare("INSERT INTO buildings (building_name, total_area, comments) VALUES (?, ?, ?)");
-            $stmt->bind_param("sds", $building_name, $total_area, $comments);
-            if ($stmt->execute()) {
-                $message = 'Building created successfully!';
-                $message_type = 'success';
-            } else {
-                $message = 'Error creating building.';
+            // Reject a duplicate name (case-insensitive via the column collation).
+            $dup = $conn->prepare("SELECT id FROM buildings WHERE building_name = ? LIMIT 1");
+            $dup->bind_param("s", $building_name);
+            $dup->execute();
+            $isDuplicate = (bool)$dup->get_result()->fetch_assoc();
+            $dup->close();
+
+            if ($isDuplicate) {
+                $message = 'A building named "' . $building_name . '" already exists.';
                 $message_type = 'error';
+            } else {
+                $stmt = $conn->prepare("INSERT INTO buildings (building_name, total_area, comments) VALUES (?, ?, ?)");
+                $stmt->bind_param("sds", $building_name, $total_area, $comments);
+                if ($stmt->execute()) {
+                    $message = 'Building created successfully!';
+                    $message_type = 'success';
+                } else {
+                    $message = 'Error creating building.';
+                    $message_type = 'error';
+                }
+                $stmt->close();
             }
-            $stmt->close();
         }
     }
 
@@ -152,16 +190,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $comments = trim($_POST['comments']);
 
         if ($building_id && $building_name && $total_area > 0) {
-            $stmt = $conn->prepare("UPDATE buildings SET building_name = ?, total_area = ?, comments = ? WHERE id = ?");
-            $stmt->bind_param("sdsi", $building_name, $total_area, $comments, $building_id);
-            if ($stmt->execute()) {
-                $message = 'Building updated successfully!';
-                $message_type = 'success';
-            } else {
-                $message = 'Error updating building.';
+            // Reject renaming onto another building's name (case-insensitive).
+            $dup = $conn->prepare("SELECT id FROM buildings WHERE building_name = ? AND id != ? LIMIT 1");
+            $dup->bind_param("si", $building_name, $building_id);
+            $dup->execute();
+            $isDuplicate = (bool)$dup->get_result()->fetch_assoc();
+            $dup->close();
+
+            if ($isDuplicate) {
+                $message = 'A building named "' . $building_name . '" already exists.';
                 $message_type = 'error';
+            } else {
+                $stmt = $conn->prepare("UPDATE buildings SET building_name = ?, total_area = ?, comments = ? WHERE id = ?");
+                $stmt->bind_param("sdsi", $building_name, $total_area, $comments, $building_id);
+                if ($stmt->execute()) {
+                    $message = 'Building updated successfully!';
+                    $message_type = 'success';
+                } else {
+                    $message = 'Error updating building.';
+                    $message_type = 'error';
+                }
+                $stmt->close();
             }
-            $stmt->close();
         }
     }
 
@@ -185,40 +235,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['add_floor'])) {
         $building_id = (int)$_POST['building_id'];
         $floor_name = trim($_POST['floor_name']);
+        // Floor number may be negative or zero (e.g. basement/parking levels);
+        // only require that a value was actually entered.
+        $floor_number_provided = isset($_POST['floor_number']) && trim((string)$_POST['floor_number']) !== '';
         $floor_number = (int)$_POST['floor_number'];
         $floor_area = (float)$_POST['floor_area'];
 
-        if ($building_id && $floor_name && $floor_number > 0 && $floor_area > 0) {
-            $stmt = $conn->prepare("INSERT INTO floors (building_id, floor_number, floor_name, area) VALUES (?, ?, ?, ?)");
-            $stmt->bind_param("iisi", $building_id, $floor_number, $floor_name, $floor_area);
-            if ($stmt->execute()) {
-                $message = 'Floor created successfully!';
-                $message_type = 'success';
-            } else {
-                $message = 'Error creating floor.';
+        if ($building_id && $floor_name && $floor_number_provided && $floor_area > 0) {
+            // Floor name must be unique within its building (case-insensitive).
+            $dup = $conn->prepare("SELECT id FROM floors WHERE building_id = ? AND floor_name = ? LIMIT 1");
+            $dup->bind_param("is", $building_id, $floor_name);
+            $dup->execute();
+            $isDuplicate = (bool)$dup->get_result()->fetch_assoc();
+            $dup->close();
+
+            if ($isDuplicate) {
+                $message = 'A floor named "' . $floor_name . '" already exists in this building.';
                 $message_type = 'error';
+            } else {
+                $stmt = $conn->prepare("INSERT INTO floors (building_id, floor_number, floor_name, area) VALUES (?, ?, ?, ?)");
+                $stmt->bind_param("iisi", $building_id, $floor_number, $floor_name, $floor_area);
+                if ($stmt->execute()) {
+                    $message = 'Floor created successfully!';
+                    $message_type = 'success';
+                } else {
+                    $message = 'Error creating floor.';
+                    $message_type = 'error';
+                }
+                $stmt->close();
             }
-            $stmt->close();
         }
     }
 
     if (isset($_POST['update_floor'])) {
         $floor_id = (int)$_POST['floor_id'];
+        // Floor number may be negative or zero (basement/parking levels).
+        $floor_number_provided = isset($_POST['floor_number']) && trim((string)$_POST['floor_number']) !== '';
         $floor_number = (int)$_POST['floor_number'];
         $floor_name = trim($_POST['floor_name']);
         $floor_area = (float)$_POST['floor_area'];
 
-        if ($floor_id && $floor_number > 0 && $floor_name && $floor_area > 0) {
-            $stmt = $conn->prepare("UPDATE floors SET floor_number = ?, floor_name = ?, area = ? WHERE id = ?");
-            $stmt->bind_param("isdi", $floor_number, $floor_name, $floor_area, $floor_id);
-            if ($stmt->execute()) {
-                $message = 'Floor updated successfully!';
-                $message_type = 'success';
-            } else {
-                $message = 'Error updating floor.';
+        if ($floor_id && $floor_number_provided && $floor_name && $floor_area > 0) {
+            // Reject renaming onto another floor's name in the same building.
+            $dup = $conn->prepare("SELECT f.id FROM floors f
+                                   WHERE f.building_id = (SELECT building_id FROM floors WHERE id = ?)
+                                     AND f.floor_name = ? AND f.id != ? LIMIT 1");
+            $dup->bind_param("isi", $floor_id, $floor_name, $floor_id);
+            $dup->execute();
+            $isDuplicate = (bool)$dup->get_result()->fetch_assoc();
+            $dup->close();
+
+            if ($isDuplicate) {
+                $message = 'A floor named "' . $floor_name . '" already exists in this building.';
                 $message_type = 'error';
+            } else {
+                $stmt = $conn->prepare("UPDATE floors SET floor_number = ?, floor_name = ?, area = ? WHERE id = ?");
+                $stmt->bind_param("isdi", $floor_number, $floor_name, $floor_area, $floor_id);
+                if ($stmt->execute()) {
+                    $message = 'Floor updated successfully!';
+                    $message_type = 'success';
+                } else {
+                    $message = 'Error updating floor.';
+                    $message_type = 'error';
+                }
+                $stmt->close();
             }
-            $stmt->close();
         }
     }
 
@@ -242,40 +323,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['add_apartment'])) {
         $floor_id = (int)$_POST['floor_id'];
         $apartment_number = trim($_POST['apartment_number']);
-        $apartment_type = trim($_POST['apartment_type']);
+        $apartment_type = trim($_POST['apartment_type'] ?? '');
+        // Server-side whitelist matching the UI dropdown; an invalid value falls
+        // through the existing truthiness guard below and is rejected.
+        if (!in_array($apartment_type, ['1BR', '2BR', '3BR', '4BR', 'Penthouse'], true)) {
+            $apartment_type = '';
+        }
         $apartment_area = (float)$_POST['apartment_area'];
 
         if ($floor_id && $apartment_number && $apartment_type && $apartment_area > 0) {
-            $stmt = $conn->prepare("INSERT INTO apartments (floor_id, building_id, apartment_number, apartment_type, area_sqm) VALUES (?, (SELECT building_id FROM floors WHERE id = ?), ?, ?, ?)");
-            $stmt->bind_param("iissd", $floor_id, $floor_id, $apartment_number, $apartment_type, $apartment_area);
-            if ($stmt->execute()) {
-                $message = 'Apartment created successfully!';
-                $message_type = 'success';
-            } else {
-                $message = 'Error creating apartment.';
+            // Apartment number must be unique within its floor (case-insensitive).
+            $dup = $conn->prepare("SELECT id FROM apartments WHERE floor_id = ? AND apartment_number = ? LIMIT 1");
+            $dup->bind_param("is", $floor_id, $apartment_number);
+            $dup->execute();
+            $isDuplicate = (bool)$dup->get_result()->fetch_assoc();
+            $dup->close();
+
+            if ($isDuplicate) {
+                $message = 'Apartment "' . $apartment_number . '" already exists on this floor.';
                 $message_type = 'error';
+            } else {
+                $stmt = $conn->prepare("INSERT INTO apartments (floor_id, building_id, apartment_number, apartment_type, area_sqm) VALUES (?, (SELECT building_id FROM floors WHERE id = ?), ?, ?, ?)");
+                $stmt->bind_param("iissd", $floor_id, $floor_id, $apartment_number, $apartment_type, $apartment_area);
+                if ($stmt->execute()) {
+                    $message = 'Apartment created successfully!';
+                    $message_type = 'success';
+                } else {
+                    $message = 'Error creating apartment.';
+                    $message_type = 'error';
+                }
+                $stmt->close();
             }
-            $stmt->close();
         }
     }
 
     if (isset($_POST['update_apartment'])) {
         $apartment_id = (int)$_POST['apartment_id'];
         $apartment_number = trim($_POST['apartment_number']);
-        $apartment_type = trim($_POST['apartment_type']);
+        $apartment_type = trim($_POST['apartment_type'] ?? '');
+        // Server-side whitelist matching the UI dropdown; an invalid value falls
+        // through the existing truthiness guard below and is rejected.
+        if (!in_array($apartment_type, ['1BR', '2BR', '3BR', '4BR', 'Penthouse'], true)) {
+            $apartment_type = '';
+        }
         $apartment_area = (float)$_POST['apartment_area'];
 
         if ($apartment_id && $apartment_number && $apartment_type && $apartment_area > 0) {
-            $stmt = $conn->prepare("UPDATE apartments SET apartment_number = ?, apartment_type = ?, area_sqm = ? WHERE id = ?");
-            $stmt->bind_param("ssdi", $apartment_number, $apartment_type, $apartment_area, $apartment_id);
-            if ($stmt->execute()) {
-                $message = 'Apartment updated successfully!';
-                $message_type = 'success';
-            } else {
-                $message = 'Error updating apartment.';
+            // Reject renaming onto another apartment's number on the same floor.
+            $dup = $conn->prepare("SELECT id FROM apartments
+                                   WHERE floor_id = (SELECT floor_id FROM apartments WHERE id = ?)
+                                     AND apartment_number = ? AND id != ? LIMIT 1");
+            $dup->bind_param("isi", $apartment_id, $apartment_number, $apartment_id);
+            $dup->execute();
+            $isDuplicate = (bool)$dup->get_result()->fetch_assoc();
+            $dup->close();
+
+            if ($isDuplicate) {
+                $message = 'Apartment "' . $apartment_number . '" already exists on this floor.';
                 $message_type = 'error';
+            } else {
+                $stmt = $conn->prepare("UPDATE apartments SET apartment_number = ?, apartment_type = ?, area_sqm = ? WHERE id = ?");
+                $stmt->bind_param("ssdi", $apartment_number, $apartment_type, $apartment_area, $apartment_id);
+                if ($stmt->execute()) {
+                    $message = 'Apartment updated successfully!';
+                    $message_type = 'success';
+                } else {
+                    $message = 'Error updating apartment.';
+                    $message_type = 'error';
+                }
+                $stmt->close();
             }
-            $stmt->close();
         }
     }
 
@@ -326,13 +443,15 @@ require_once 'partials/sidebar.php';
             </header>
 
             <div class="content-wrapper">
-            <!-- Success/Error Messages -->
+            <!-- Success/Error Messages (stable container so AJAX adds can refresh it) -->
+            <div id="settings-alert">
             <?php if ($message): ?>
                 <div class="alert alert-<?php echo $message_type; ?>">
                     <i class="fas fa-<?php echo $message_type === 'success' ? 'check-circle' : 'exclamation-circle'; ?>"></i>
                     <?php echo htmlspecialchars($message); ?>
                 </div>
             <?php endif; ?>
+            </div>
 
             <!-- Settings Container -->
             <div class="settings-layout">
@@ -388,10 +507,10 @@ require_once 'partials/sidebar.php';
                                             <?php endif; ?>
                                         </div>
                                         <div class="building-actions">
-                                            <button class="action-btn edit-btn" onclick="editBuilding(<?php echo $building['id']; ?>, '<?php echo htmlspecialchars($building['building_name']); ?>', <?php echo $building['total_area']; ?>, '<?php echo htmlspecialchars($building['comments'] ?? ''); ?>')" title="Edit Building">
+                                            <button class="action-btn edit-btn" onclick="editBuilding(<?php echo $building['id']; ?>, <?php echo htmlspecialchars(json_encode($building['building_name']), ENT_QUOTES); ?>, <?php echo (float)$building['total_area']; ?>, <?php echo htmlspecialchars(json_encode($building['comments'] ?? ''), ENT_QUOTES); ?>)" title="Edit Building">
                                                 <i class="fas fa-edit"></i>
                                             </button>
-                                            <button class="action-btn delete-btn" onclick="deleteBuilding(<?php echo $building['id']; ?>, '<?php echo htmlspecialchars($building['building_name']); ?>')" title="Delete Building">
+                                            <button class="action-btn delete-btn" onclick="deleteBuilding(<?php echo $building['id']; ?>, <?php echo htmlspecialchars(json_encode($building['building_name']), ENT_QUOTES); ?>)" title="Delete Building">
                                                 <i class="fas fa-trash"></i>
                                             </button>
                                             <button class="toggle-building" data-building-id="<?php echo $building['id']; ?>" type="button" title="Toggle Details">
@@ -406,7 +525,7 @@ require_once 'partials/sidebar.php';
                                             <div class="add-floor-form">
                                                 <form method="POST" class="inline-form ajax-add-floor" data-building-id="<?php echo $building['id']; ?>">
                                                     <input type="hidden" name="building_id" value="<?php echo $building['id']; ?>">
-                                                    <input type="number" name="floor_number" placeholder="Floor #" min="1" required>
+                                                    <input type="number" name="floor_number" placeholder="Floor # (e.g. -1 for parking)" step="1" required>
                                                     <input type="text" name="floor_name" placeholder="Floor name" required>
                                                     <input type="number" name="floor_area" placeholder="Area (sqft)" step="0.01" min="0" required>
                                                     <button type="submit" name="add_floor" class="btn btn-sm btn-primary">
@@ -434,10 +553,10 @@ require_once 'partials/sidebar.php';
                                                                     <?php echo htmlspecialchars($floor['floor_name']); ?>
                                                                 </span>
                                                                 <div class="floor-actions">
-                                                                    <button class="action-btn edit-btn" onclick="editFloor(<?php echo $floor['id']; ?>, <?php echo $floor['floor_number']; ?>, '<?php echo htmlspecialchars($floor['floor_name']); ?>', <?php echo $floor['area']; ?>, <?php echo $building['id']; ?>)" title="Edit Floor">
+                                                                    <button class="action-btn edit-btn" onclick="editFloor(<?php echo $floor['id']; ?>, <?php echo (int)$floor['floor_number']; ?>, <?php echo htmlspecialchars(json_encode($floor['floor_name']), ENT_QUOTES); ?>, <?php echo (float)$floor['area']; ?>, <?php echo $building['id']; ?>)" title="Edit Floor">
                                                                         <i class="fas fa-edit"></i>
                                                                     </button>
-                                                                    <button class="action-btn delete-btn" onclick="deleteFloor(<?php echo $floor['id']; ?>, '<?php echo htmlspecialchars($floor['floor_name']); ?>', <?php echo $building['id']; ?>)" title="Delete Floor">
+                                                                    <button class="action-btn delete-btn" onclick="deleteFloor(<?php echo $floor['id']; ?>, <?php echo htmlspecialchars(json_encode($floor['floor_name']), ENT_QUOTES); ?>, <?php echo $building['id']; ?>)" title="Delete Floor">
                                                                         <i class="fas fa-trash"></i>
                                                                     </button>
                                                                 </div>
@@ -488,10 +607,10 @@ require_once 'partials/sidebar.php';
                                                                                     <small><?php echo $apt['area_sqm']; ?> m²</small>
                                                                                 </div>
                                                                                 <div class="apt-actions">
-                                                                                    <button class="action-btn edit-btn" onclick="editApartment(<?php echo $apt['id']; ?>, '<?php echo htmlspecialchars($apt['apartment_number']); ?>', '<?php echo htmlspecialchars($apt['apartment_type']); ?>', <?php echo $apt['area_sqm']; ?>, <?php echo $floor['id']; ?>)" title="Edit Apartment">
+                                                                                    <button class="action-btn edit-btn" onclick="editApartment(<?php echo $apt['id']; ?>, <?php echo htmlspecialchars(json_encode($apt['apartment_number']), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($apt['apartment_type']), ENT_QUOTES); ?>, <?php echo (float)$apt['area_sqm']; ?>, <?php echo $floor['id']; ?>)" title="Edit Apartment">
                                                                                         <i class="fas fa-edit"></i>
                                                                                     </button>
-                                                                                    <button class="action-btn delete-btn" onclick="deleteApartment(<?php echo $apt['id']; ?>, '<?php echo htmlspecialchars($apt['apartment_number']); ?>', <?php echo $floor['id']; ?>)" title="Delete Apartment">
+                                                                                    <button class="action-btn delete-btn" onclick="deleteApartment(<?php echo $apt['id']; ?>, <?php echo htmlspecialchars(json_encode($apt['apartment_number']), ENT_QUOTES); ?>, <?php echo $floor['id']; ?>)" title="Delete Apartment">
                                                                                         <i class="fas fa-trash"></i>
                                                                                     </button>
                                                                                 </div>
@@ -523,8 +642,12 @@ require_once 'partials/sidebar.php';
                         </div>
                         <form method="POST" class="settings-form ajax-work-type-form">
                             <div class="form-group">
-                                <label for="work_type_name">Category Name</label>
+                                <label for="work_type_name">Category Name (English)</label>
                                 <input type="text" name="work_type_name" id="work_type_name" required placeholder="e.g., Paint, Gechkari, Electrical">
+                            </div>
+                            <div class="form-group">
+                                <label for="work_type_name_ku">Category Name (Kurdish)</label>
+                                <input type="text" name="work_type_name_ku" id="work_type_name_ku" dir="rtl" placeholder="ناوی جۆری کار">
                             </div>
                             <button type="submit" name="save_work_type" class="btn btn-primary btn-block">
                                 <i class="fas fa-plus"></i> Add Category
@@ -562,6 +685,9 @@ require_once 'partials/sidebar.php';
                                                 </div>
                                             </div>
                                             <h3 class="work-type-title"><?php echo htmlspecialchars($wt['work_type_name']); ?></h3>
+                                            <?php if (!empty($wt['work_type_name_ku'])): ?>
+                                                <p class="work-type-name-ku" dir="rtl"><i class="fas fa-language"></i> <?php echo htmlspecialchars($wt['work_type_name_ku']); ?></p>
+                                            <?php endif; ?>
                                             <p class="work-type-key"><i class="fas fa-key"></i> <?php echo htmlspecialchars($wt['work_type_key']); ?></p>
                                         </div>
                                     </div>
@@ -629,6 +755,15 @@ require_once 'partials/sidebar.php';
             if (current && next) {
                 current.outerHTML = next.outerHTML;
             }
+        }
+
+        // Refresh the server-rendered success/error message from an AJAX response.
+        function showAlert(doc) {
+            replaceById('settings-alert', doc);
+        }
+
+        function wasSuccess(doc) {
+            return !!doc.querySelector('#settings-alert .alert-success');
         }
 
         function editBuilding(id, name, area, comments) {
@@ -752,7 +887,10 @@ require_once 'partials/sidebar.php';
                     .then(html => {
                         const doc = parseDoc(html);
                         replaceById('buildings-list-main', doc);
-                        form.reset();
+                        showAlert(doc);
+                        // Only clear the form when the building was actually added
+                        // (e.g. keep the typed name if it was a duplicate).
+                        if (wasSuccess(doc)) form.reset();
                     });
             });
 
@@ -768,7 +906,9 @@ require_once 'partials/sidebar.php';
                     .then(html => {
                         const doc = parseDoc(html);
                         replaceById('floors-list-' + buildingId, doc);
-                        form.reset();
+                        showAlert(doc);
+                        // Inputs are intentionally kept (not reset) so several
+                        // similar floors can be added without re-typing.
                     });
             });
 
@@ -784,7 +924,7 @@ require_once 'partials/sidebar.php';
                     .then(html => {
                         const doc = parseDoc(html);
                         replaceById('apartments-grid-' + floorId, doc);
-                        form.reset();
+                        showAlert(doc);
                     });
             });
 
@@ -798,6 +938,7 @@ require_once 'partials/sidebar.php';
                     .then(html => {
                         const doc = parseDoc(html);
                         replaceById('work-types-settings-section', doc);
+                        showAlert(doc);
                     });
             });
 
@@ -814,6 +955,7 @@ require_once 'partials/sidebar.php';
                     .then(html => {
                         const doc = parseDoc(html);
                         replaceById('work-types-settings-section', doc);
+                        showAlert(doc);
                     });
             });
 
@@ -911,7 +1053,7 @@ require_once 'partials/sidebar.php';
                 <input type="hidden" id="edit_floor_building_id">
                 <div style="margin-bottom: 20px;">
                     <label for="edit_floor_number" style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;">Floor Number</label>
-                    <input type="number" name="floor_number" id="edit_floor_number" min="1" required style="width: 100%; padding: 12px 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff; font-size: 0.95rem;">
+                    <input type="number" name="floor_number" id="edit_floor_number" step="1" required style="width: 100%; padding: 12px 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff; font-size: 0.95rem;">
                 </div>
                 <div style="margin-bottom: 20px;">
                     <label for="edit_floor_name" style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;">Floor Name</label>

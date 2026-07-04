@@ -19,20 +19,12 @@ while ($row = $res->fetch_assoc()) {
 }
 $stmt->close();
 
-$isManager = in_array('user_management', $permissions, true) || in_array('project_settings', $permissions, true);
-if (!$isManager && !empty($_SESSION['role_id'])) {
-    $roleStmt = $conn->prepare("SELECT name FROM roles WHERE id = ? LIMIT 1");
-    if ($roleStmt) {
-        $roleId = (int)$_SESSION['role_id'];
-        $roleStmt->bind_param("i", $roleId);
-        $roleStmt->execute();
-        $roleRes = $roleStmt->get_result();
-        if ($roleRes && ($roleRow = $roleRes->fetch_assoc())) {
-            $isManager = in_array(strtolower(trim((string)$roleRow['name'])), ['manager', 'admin']);
-        }
-        $roleStmt->close();
-    }
+if (!in_array('slfa', $permissions, true)) {
+    header('Location: dashboard.php?error=access_denied');
+    exit;
 }
+
+$isManager = in_array('user_management', $permissions, true) || in_array('project_settings', $permissions, true);
 
 if (!$isManager) {
     header('Location: dashboard.php?error=access_denied');
@@ -430,7 +422,7 @@ require_once 'partials/header.php';
 </div><!-- /slfa-page -->
 
 <script>
-const slfaStakeholders = <?php echo json_encode($stakeholders, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+const slfaStakeholders = <?php echo json_encode($stakeholders, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP); ?>;
 
 let currentStakeholderId  = null;
 let currentStakeholderObj = null;

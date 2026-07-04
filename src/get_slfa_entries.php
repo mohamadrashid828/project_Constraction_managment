@@ -37,7 +37,8 @@ if (!$isManager && !empty($_SESSION['role_id'])) {
     }
 }
 
-if (!$isManager) {
+// Match the slfa.php page gate: must be a manager AND hold the 'slfa' permission.
+if (!$isManager || !in_array('slfa', $permissions, true)) {
     echo json_encode(['success' => false, 'message' => 'Access denied']);
     exit;
 }
@@ -75,9 +76,6 @@ if ($mode === 'history') {
 
 // ── MODE: stats ───────────────────────────────────────────────────────────
 if ($mode === 'stats') {
-    // Ensure slfa_payment_id column exists
-    $conn->query("SHOW COLUMNS FROM project_work_entries LIKE 'slfa_payment_id'");
-
     $stmt = $conn->prepare("
         SELECT
             s.id,
@@ -88,9 +86,9 @@ if ($mode === 'stats') {
             s.apartment_meter_price,
             COALESCE(wt.work_type_name, s.work_type_key) AS work_type_label,
             COUNT(e.id) AS total_entries,
-            COALESCE(SUM(CASE WHEN e.status = 'accepted' THEN 1 ELSE 0 END), 0) AS accepted_count,
-            COALESCE(SUM(CASE WHEN e.status = 'medium'   THEN 1 ELSE 0 END), 0) AS medium_count,
-            COALESCE(SUM(CASE WHEN e.status = 'rejected' THEN 1 ELSE 0 END), 0) AS rejected_count,
+            COALESCE(SUM(CASE WHEN e.status = 'accepted' AND (e.slfa_payment_id IS NULL OR e.slfa_payment_id = 0) THEN 1 ELSE 0 END), 0) AS accepted_count,
+            COALESCE(SUM(CASE WHEN e.status = 'medium'   AND (e.slfa_payment_id IS NULL OR e.slfa_payment_id = 0) THEN 1 ELSE 0 END), 0) AS medium_count,
+            COALESCE(SUM(CASE WHEN e.status = 'rejected' AND (e.slfa_payment_id IS NULL OR e.slfa_payment_id = 0) THEN 1 ELSE 0 END), 0) AS rejected_count,
             COALESCE(SUM(CASE WHEN e.status = 'accepted' THEN e.total_price ELSE 0 END), 0) AS accepted_value,
             COALESCE(SUM(CASE WHEN e.status = 'accepted' AND (e.slfa_payment_id IS NULL OR e.slfa_payment_id = 0) THEN e.total_price ELSE 0 END), 0) AS pending_value,
             COALESCE(SUM(CASE WHEN e.status = 'accepted' AND (e.slfa_payment_id IS NULL OR e.slfa_payment_id = 0) THEN 1 ELSE 0 END), 0) AS pending_count,

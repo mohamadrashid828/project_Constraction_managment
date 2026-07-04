@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../config.php';
+require_once 'includes/permissions.php';
 
 header('Content-Type: application/json');
 
@@ -10,51 +11,39 @@ if (empty($_SESSION['user_id'])) {
 }
 
 $user_id = (int)$_SESSION['user_id'];
-$stmt = $conn->prepare('SELECT p.name FROM permissions p JOIN role_permissions rp ON p.id = rp.permission_id JOIN users u ON rp.role_id = u.role_id WHERE u.id = ?');
-$stmt->bind_param('i', $user_id);
-$stmt->execute();
-$res = $stmt->get_result();
-$permissions = [];
-while ($row = $res->fetch_assoc()) {
-    $permissions[] = $row['name'];
-}
-$stmt->close();
+$permissions = get_user_permissions($conn, $user_id);
 
-if (!in_array('data_entry', $permissions, true) && !in_array('project_settings', $permissions, true)) {
+if (!in_array('analytics', $permissions, true)) {
     echo json_encode(['success' => false, 'message' => 'Access denied']);
     exit;
 }
-
-$conn->query("CREATE TABLE IF NOT EXISTS project_work_entries (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    work_date DATE NOT NULL,
-    engineer_name VARCHAR(180) NOT NULL,
-    work_type_key VARCHAR(80) NOT NULL,
-    stakeholder_id INT NULL,
-    subpart_id INT NULL,
-    quantity DECIMAL(12,2) NOT NULL DEFAULT 0,
-    unit_price DECIMAL(12,2) NOT NULL DEFAULT 0,
-    total_price DECIMAL(14,2) NOT NULL DEFAULT 0,
-    metric_type VARCHAR(30) NOT NULL DEFAULT 'unit',
-    currency_type VARCHAR(20) NOT NULL DEFAULT 'USD',
-    building_id INT NOT NULL,
-    floor_id INT NOT NULL,
-    apartment_id INT NOT NULL,
-    notes TEXT NULL,
-    status VARCHAR(30) NOT NULL DEFAULT 'draft',
-    created_by INT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_work_type_key (work_type_key),
-    INDEX idx_apartment (apartment_id),
-    INDEX idx_work_date (work_date)
-)");
 
 function normalize_work_type_key_report($key) {
     $k = strtolower(trim((string)$key));
     $k = preg_replace('/[^a-z0-9_]+/', '_', $k);
     $k = preg_replace('/_+/', '_', $k);
     return trim($k, '_');
+}
+
+// The "Gechkari" quick-entry feature stores into the older `measurements`
+// table (work_type_id = 1) rather than `project_work_entries`; every report
+// here treats both as one "work entries" concept so the two-table split is
+// an implementation detail the user never sees.
+function normalize_status_report($raw) {
+    $s = strtolower(trim((string)$raw));
+    if ($s === 'approved') { return 'accepted'; } // measurements uses 'approved', project_work_entries uses 'accepted'
+    if (in_array($s, ['accepted', 'medium', 'draft', 'rejected'], true)) { return $s; }
+    return $s !== '' ? $s : 'draft';
+}
+
+function status_report_label($status) {
+    $map = [
+        'accepted' => 'Approved',
+        'medium'   => 'Under Review',
+        'draft'    => 'Waiting',
+        'rejected' => 'Rejected',
+    ];
+    return $map[$status] ?? ucfirst($status);
 }
 
 function parse_gechkari_report_meta($notes) {
@@ -99,6 +88,10 @@ $filterWorkType = normalize_work_type_key_report($_GET['work_type_key'] ?? '');
 $filterBuildingId = (int)($_GET['building_id'] ?? 0);
 $filterFloorId = (int)($_GET['floor_id'] ?? 0);
 $filterApartmentId = (int)($_GET['apartment_id'] ?? 0);
+$filterStatus = normalize_status_report($_GET['status'] ?? '');
+if (($_GET['status'] ?? '') === '') {
+    $filterStatus = ''; // '' means "all statuses", not the normalize() fallback of 'draft'
+}
 $dateFrom = trim((string)($_GET['date_from'] ?? ''));
 $dateTo = trim((string)($_GET['date_to'] ?? ''));
 
@@ -108,6 +101,7 @@ $sql = "SELECT 'gechkari' AS source, m.id, m.measurement_date AS entry_date,
         'gechkari' AS work_type_key, 'Gechkari' AS work_type_name,
         NULL AS stakeholder_id, '' AS stakeholder_name, '' AS subpart_name,
         m.quantity, m.unit_price, m.total_price, 'm²' AS metric_type, 'USD' AS currency_type,
+        m.status,
         m.building_id, COALESCE(b.building_name, '—') AS building_name,
         m.floor_id, COALESCE(f.floor_name, '—') AS floor_name,
         m.apartment_id, COALESCE(a.apartment_number, '') AS apartment_number,
@@ -124,6 +118,7 @@ $sql = "SELECT 'gechkari' AS source, m.id, m.measurement_date AS entry_date,
         e.work_type_key, COALESCE(pwt.work_type_name, e.work_type_key) AS work_type_name,
         e.stakeholder_id, COALESCE(ps.stakeholder_name, '') AS stakeholder_name, COALESCE(sp.subpart_name, '') AS subpart_name,
         e.quantity, e.unit_price, e.total_price, e.metric_type, e.currency_type,
+        e.status,
         e.building_id, COALESCE(b.building_name, '—') AS building_name,
         e.floor_id, COALESCE(f.floor_name, '—') AS floor_name,
         e.apartment_id, COALESCE(a.apartment_number, '') AS apartment_number,
@@ -141,6 +136,7 @@ $result = $conn->query($sql);
 if ($result) {
     while ($row = $result->fetch_assoc()) {
         $row['work_type_key'] = normalize_work_type_key_report($row['work_type_key'] ?? '');
+        $row['status'] = normalize_status_report($row['status'] ?? '');
         if ($row['source'] === 'gechkari') {
             $meta = parse_gechkari_report_meta($row['notes'] ?? '');
             if ($meta['engineer'] !== '') {
@@ -156,6 +152,7 @@ if ($result) {
             $row['currency_type'] = $meta['currency'] !== '' ? $meta['currency'] : 'USD';
             $row['notes'] = $meta['notes'];
         }
+        $row['currency_type'] = $row['currency_type'] ?: 'IQD';
 
         if ($filterWorkType !== '' && $row['work_type_key'] !== $filterWorkType) {
             continue;
@@ -167,6 +164,9 @@ if ($result) {
             continue;
         }
         if ($filterApartmentId > 0 && (int)$row['apartment_id'] !== $filterApartmentId) {
+            continue;
+        }
+        if ($filterStatus !== '' && $row['status'] !== $filterStatus) {
             continue;
         }
         if ($dateFrom !== '' && (string)$row['entry_date'] < $dateFrom) {
@@ -188,15 +188,18 @@ usort($entries, function ($a, $b) {
     return strcmp((string)($b['created_at'] ?? ''), (string)($a['created_at'] ?? ''));
 });
 
+// Values are kept split by currency everywhere below — IQD and USD entries
+// are never added together, since that number would be meaningless.
 $groupsMap = [];
 $totalQuantity = 0.0;
-$totalValue = 0.0;
+$totalValueByCurrency = [];
 
 foreach ($entries as $entry) {
     $quantity = (float)($entry['quantity'] ?? 0);
     $value = (float)($entry['total_price'] ?? 0);
+    $currency = (string)$entry['currency_type'];
     $totalQuantity += $quantity;
-    $totalValue += $value;
+    $totalValueByCurrency[$currency] = ($totalValueByCurrency[$currency] ?? 0) + $value;
 
     switch ($breakdown) {
         case 'building':
@@ -223,19 +226,30 @@ foreach ($entries as $entry) {
             'label' => $groupLabel,
             'entries_count' => 0,
             'total_quantity' => 0.0,
-            'total_value' => 0.0,
+            'total_value_by_currency' => [],
             'primary_metric' => (string)($entry['metric_type'] ?? 'unit'),
         ];
     }
 
     $groupsMap[$groupLabel]['entries_count']++;
     $groupsMap[$groupLabel]['total_quantity'] += $quantity;
-    $groupsMap[$groupLabel]['total_value'] += $value;
+    $groupsMap[$groupLabel]['total_value_by_currency'][$currency] =
+        ($groupsMap[$groupLabel]['total_value_by_currency'][$currency] ?? 0) + $value;
+}
+
+// Rank groups by their value in whichever currency has the largest overall
+// total (the "dominant" currency for this filtered result set).
+$dominantCurrency = 'IQD';
+$bestTotal = -1;
+foreach ($totalValueByCurrency as $cur => $v) {
+    if ($v > $bestTotal) { $bestTotal = $v; $dominantCurrency = $cur; }
 }
 
 $groups = array_values($groupsMap);
-usort($groups, function ($a, $b) {
-    return ($b['total_value'] <=> $a['total_value']);
+usort($groups, function ($a, $b) use ($dominantCurrency) {
+    $av = $a['total_value_by_currency'][$dominantCurrency] ?? 0;
+    $bv = $b['total_value_by_currency'][$dominantCurrency] ?? 0;
+    return $bv <=> $av;
 });
 
 $details = [];
@@ -250,7 +264,9 @@ foreach (array_slice($entries, 0, 100) as $entry) {
         'quantity' => (float)($entry['quantity'] ?? 0),
         'metric_type' => (string)($entry['metric_type'] ?? 'unit'),
         'total_price' => (float)($entry['total_price'] ?? 0),
-        'currency_type' => (string)($entry['currency_type'] ?? 'USD'),
+        'currency_type' => (string)$entry['currency_type'],
+        'status' => (string)$entry['status'],
+        'status_label' => status_report_label($entry['status']),
     ];
 }
 
@@ -260,11 +276,12 @@ echo json_encode([
         'entries_count' => count($entries),
         'groups_count' => count($groups),
         'total_quantity' => round($totalQuantity, 2),
-        'total_value' => round($totalValue, 2),
+        'total_value_by_currency' => array_map(fn($v) => round($v, 2), $totalValueByCurrency),
+        'dominant_currency' => $dominantCurrency,
     ],
     'groups' => array_map(function ($group) {
         $group['total_quantity'] = round((float)$group['total_quantity'], 2);
-        $group['total_value'] = round((float)$group['total_value'], 2);
+        $group['total_value_by_currency'] = array_map(fn($v) => round($v, 2), $group['total_value_by_currency']);
         return $group;
     }, $groups),
     'details' => $details,

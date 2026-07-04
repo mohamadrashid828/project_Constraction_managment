@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../config.php';
+require_once 'includes/csrf.php';
 
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
@@ -553,10 +554,10 @@ require_once 'partials/sidebar.php';
         }, 3500);
     }
 
-    var workTypes = <?php echo json_encode($workTypes, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
-    var workTypeNameMap = <?php echo json_encode($workTypeNameMap, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
-    var stakeholdersByWorkType = <?php echo json_encode($stakeholdersByWorkType, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
-    var subpartsByStakeholder = <?php echo json_encode($subpartsByStakeholder, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+    var workTypes = <?php echo json_encode($workTypes, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP); ?>;
+    var workTypeNameMap = <?php echo json_encode($workTypeNameMap, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP); ?>;
+    var stakeholdersByWorkType = <?php echo json_encode($stakeholdersByWorkType, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP); ?>;
+    var subpartsByStakeholder = <?php echo json_encode($subpartsByStakeholder, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP); ?>;
     var activeWorkType = '<?php echo htmlspecialchars($defaultWorkTypeKey, ENT_QUOTES); ?>';
     var canManageHistory = <?php echo $canManageHistory ? 'true' : 'false'; ?>;
 
@@ -894,7 +895,8 @@ require_once 'partials/sidebar.php';
                  + '&metric_type=' + encodeURIComponent(subpartMetric)
                  + '&currency_type=' + encodeURIComponent(subpartCurrency)
                  + '&status=' + encodeURIComponent(entryStatus)
-                 + '&notes=' + encodeURIComponent(notes || '');
+                 + '&notes=' + encodeURIComponent(notes || '')
+                 + '&csrf_token=<?php echo urlencode(csrf_token()); ?>';
 
         if (!stakeholderId || !subpartId || !qty || parseFloat(qty) <= 0 || !price || parseFloat(price) < 0) {
             btn.disabled = false;
@@ -919,7 +921,8 @@ require_once 'partials/sidebar.php';
                  + '&quantity=' + encodeURIComponent(qty)
                  + '&unit_price=' + encodeURIComponent(price)
                  + '&status=' + encodeURIComponent(entryStatus)
-                 + '&notes=' + encodeURIComponent(notesWithStakeholder);
+                 + '&notes=' + encodeURIComponent(notesWithStakeholder)
+                 + '&csrf_token=<?php echo urlencode(csrf_token()); ?>';
         }
 
         fetch(endpoint, {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:body})

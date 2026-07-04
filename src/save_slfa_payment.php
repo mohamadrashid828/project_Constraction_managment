@@ -42,7 +42,8 @@ if (!$isManager && !empty($_SESSION['role_id'])) {
     }
 }
 
-if (!$isManager) {
+// Match the slfa.php page gate: must be a manager AND hold the 'slfa' permission.
+if (!$isManager || !in_array('slfa', $permissions, true)) {
     echo json_encode(['success' => false, 'message' => 'Access denied']);
     exit;
 }
@@ -82,10 +83,10 @@ if (!is_array($entry_ids) || count($entry_ids) === 0) {
     echo json_encode(['success' => false, 'message' => 'No entries selected']);
     exit;
 }
-if ($total_work_value <= 0) {
-    echo json_encode(['success' => false, 'message' => 'Total work value must be greater than 0']);
-    exit;
-}
+// Note: all financial figures (total_work_value, cash/apartment amounts, sqm)
+// are recomputed server-side below from the verified entries and the
+// stakeholder's configured split — the client-sent amounts are used only for
+// the confirm-dialog preview and are never persisted.
 
 // Sanitise entry_ids to integers
 $entry_ids = array_filter(array_map('intval', $entry_ids), fn($v) => $v > 0);
@@ -163,6 +164,37 @@ if (count($verifiedIds) === 0) {
 $entry_ids   = $verifiedIds;
 $entry_count = count($entry_ids);
 
+// ── Recompute all money server-side (never trust client amounts) ──────────
+$sumPlaceholders = implode(',', array_fill(0, count($entry_ids), '?'));
+$sumStmt  = $conn->prepare("SELECT COALESCE(SUM(total_price), 0) AS t FROM project_work_entries WHERE id IN ($sumPlaceholders)");
+$sumTypes = str_repeat('i', count($entry_ids));
+$sumRefs  = [&$sumTypes];
+foreach ($entry_ids as $i => $v) {
+    $sumRefs[] = &$entry_ids[$i];
+}
+call_user_func_array([$sumStmt, 'bind_param'], $sumRefs);
+$sumStmt->execute();
+$total_work_value = (float)($sumStmt->get_result()->fetch_assoc()['t'] ?? 0);
+$sumStmt->close();
+
+$splitStmt = $conn->prepare("SELECT cash_percentage, apartment_percentage, apartment_meter_price FROM project_stakeholders WHERE id = ?");
+$splitStmt->bind_param('i', $stakeholder_id);
+$splitStmt->execute();
+$splitRow = $splitStmt->get_result()->fetch_assoc();
+$splitStmt->close();
+
+$cash_percentage       = (float)($splitRow['cash_percentage'] ?? 0);
+$apartment_percentage  = (float)($splitRow['apartment_percentage'] ?? 0);
+$apartment_meter_price = (float)($splitRow['apartment_meter_price'] ?? 0);
+$cash_amount      = round($total_work_value * $cash_percentage / 100, 2);
+$apartment_amount = round($total_work_value * $apartment_percentage / 100, 2);
+$apartment_sqm    = $apartment_meter_price > 0 ? round($apartment_amount / $apartment_meter_price, 4) : 0;
+
+if ($total_work_value <= 0) {
+    echo json_encode(['success' => false, 'message' => 'Selected entries have no billable value']);
+    exit;
+}
+
 // ── Begin transaction ─────────────────────────────────────────────────────
 $conn->begin_transaction();
 
@@ -196,19 +228,30 @@ try {
         throw new Exception('Failed to create payment record');
     }
 
-    // 2. Mark all selected entries as settled (set slfa_payment_id)
+    // 2. Mark all selected entries as settled — but only rows that still belong
+    //    to this stakeholder and are still unsettled. This closes the TOCTOU gap
+    //    between the verify SELECT above and this write: if a concurrent request
+    //    settled any of them first, affected_rows won't match and we roll back.
     $updatePlaceholders = implode(',', array_fill(0, count($entry_ids), '?'));
-    $updateSQL = "UPDATE project_work_entries SET slfa_payment_id = ? WHERE id IN ($updatePlaceholders)";
+    $updateSQL = "UPDATE project_work_entries SET slfa_payment_id = ?
+                  WHERE id IN ($updatePlaceholders)
+                    AND stakeholder_id = ?
+                    AND (slfa_payment_id IS NULL OR slfa_payment_id = 0)";
     $updStmt   = $conn->prepare($updateSQL);
-    $updTypes  = 'i' . str_repeat('i', count($entry_ids));
-    $updArgs   = array_merge([$payment_id], $entry_ids);
+    $updTypes  = 'i' . str_repeat('i', count($entry_ids)) . 'i';
+    $updArgs   = array_merge([$payment_id], $entry_ids, [$stakeholder_id]);
     $updRefs   = [&$updTypes];
     foreach ($updArgs as $i => $v) {
         $updRefs[] = &$updArgs[$i];
     }
     call_user_func_array([$updStmt, 'bind_param'], $updRefs);
     $updStmt->execute();
+    $affected = $updStmt->affected_rows;
     $updStmt->close();
+
+    if ($affected !== $entry_count) {
+        throw new Exception('Some entries were already settled by another request');
+    }
 
     $conn->commit();
 
@@ -217,9 +260,14 @@ try {
         'payment_id' => $payment_id,
         'message'    => 'Slfa payment created successfully. ' . $entry_count . ' entries settled.',
         'entry_count' => $entry_count,
+        'total_work_value' => $total_work_value,
+        'cash_amount' => $cash_amount,
+        'apartment_amount' => $apartment_amount,
+        'apartment_sqm' => $apartment_sqm,
     ]);
 
 } catch (Exception $e) {
     $conn->rollback();
-    echo json_encode(['success' => false, 'message' => 'Transaction failed: ' . $e->getMessage()]);
+    error_log('save_slfa_payment failed: ' . $e->getMessage());
+    echo json_encode(['success' => false, 'message' => 'Could not save the payment. Please try again.']);
 }

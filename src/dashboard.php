@@ -5,20 +5,14 @@ if (empty($_SESSION['user_id'])) {
     exit;
 }
 require_once '../config.php';
+require_once 'includes/permissions.php';
 
-$user_id = $_SESSION['user_id'];
+$user_id = (int)$_SESSION['user_id'];
 $username = htmlspecialchars($_SESSION['username']);
-$role_id = $_SESSION['role_id'];
 
-$permissions = [];
-$stmt = $conn->prepare('SELECT p.name FROM permissions p JOIN role_permissions rp ON p.id = rp.permission_id WHERE rp.role_id = ?');
-$stmt->bind_param('i', $role_id);
-$stmt->execute();
-$res = $stmt->get_result();
-while ($row = $res->fetch_assoc()) {
-    $permissions[] = $row['name'];
-}
-$stmt->close();
+// Live-role permissions (join through users.id), so a role change applies on
+// the next request rather than after re-login.
+$permissions = get_user_permissions($conn, $user_id);
 ?>
 <?php
 $pageTitle = 'Dashboard - Construction Management';
@@ -43,8 +37,9 @@ require_once 'partials/sidebar.php';
             <div class="content-wrapper">
         <?php
         $totalUsers = $conn->query('SELECT COUNT(*) as count FROM users')->fetch_assoc()['count'] ?? 0;
-        $totalProjects = $conn->query('SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = "projects"')->fetch_assoc()['count'] ?? 0;
-        $projectCount = $totalProjects ? $conn->query('SELECT COUNT(*) as count FROM projects')->fetch_assoc()['count'] : 0;
+        // There is no "projects" table in this schema; buildings are the real
+        // project unit (analytics.php uses the same proxy).
+        $projectCount = (int)($conn->query('SELECT COUNT(*) as count FROM buildings')->fetch_assoc()['count'] ?? 0);
         $totalPayments = 12875000;
         $pendingTasks = 2;
         $teamCount = $totalUsers;
@@ -95,7 +90,7 @@ require_once 'partials/sidebar.php';
                 <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                     <div>
                         <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 8px;">Projects</p>
-                        <p style="color: #fff; font-size: 2rem; font-weight: 700;"><?php echo max(1,$projectCount); ?></p>
+                        <p style="color: #fff; font-size: 2rem; font-weight: 700;"><?php echo $projectCount; ?></p>
                         <p style="color: #cbd5e1; font-size: 0.85rem; margin-top: 8px;">Active Projects</p>
                     </div>
                     <div style="background: rgba(139, 92, 246, 0.2); width: 60px; height: 60px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">

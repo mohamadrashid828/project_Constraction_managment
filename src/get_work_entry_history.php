@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../config.php';
+require_once 'includes/permissions.php';
 
 if (!isset($_SESSION['user_id'])) {
     echo '<tr><td colspan="7" class="no-data">Not authenticated</td></tr>';
@@ -8,21 +9,16 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $userId = (int)$_SESSION['user_id'];
-$canManageHistory = false;
+$permissions = get_user_permissions($conn, $userId);
 
-$permStmt = $conn->prepare("SELECT p.name FROM permissions p JOIN role_permissions rp ON p.id = rp.permission_id JOIN users u ON rp.role_id = u.role_id WHERE u.id = ?");
-if ($permStmt) {
-    $permStmt->bind_param('i', $userId);
-    $permStmt->execute();
-    $permRes = $permStmt->get_result();
-    while ($permRes && ($permRow = $permRes->fetch_assoc())) {
-        if (($permRow['name'] ?? '') === 'user_management') {
-            $canManageHistory = true;
-            break;
-        }
-    }
-    $permStmt->close();
+// Read access requires the same 'data_entry' permission the parent page enforces,
+// so this endpoint can't be called directly by an unrelated role.
+if (!in_array('data_entry', $permissions, true)) {
+    echo '<tr><td colspan="7" class="no-data">Access denied</td></tr>';
+    exit();
 }
+
+$canManageHistory = in_array('user_management', $permissions, true);
 
 if (!$canManageHistory && !empty($_SESSION['role_id'])) {
     $roleStmt = $conn->prepare("SELECT name FROM roles WHERE id = ? LIMIT 1");

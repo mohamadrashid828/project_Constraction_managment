@@ -5,25 +5,22 @@ if (empty($_SESSION['user_id'])) {
     exit;
 }
 require_once '../config.php';
+require_once 'includes/stakeholder_access.php';
+require_once 'includes/permissions.php';
+require_once 'includes/csrf.php';
 
 $user_id = $_SESSION['user_id'];
-$stmt = $conn->prepare('SELECT p.name FROM permissions p JOIN role_permissions rp ON p.id = rp.permission_id JOIN users u ON rp.role_id = u.role_id WHERE u.id = ?');
-$stmt->bind_param('i', $user_id);
-$stmt->execute();
-$res = $stmt->get_result();
-$permissions = [];
-while ($row = $res->fetch_assoc()) {
-    $permissions[] = $row['name'];
-}
-$stmt->close();
+$permissions = get_user_permissions($conn, $user_id);
 
-if (!in_array('project_settings', $permissions)) {
+if (!in_array('stakeholders', $permissions, true)) {
     header('Location: dashboard.php?error=access_denied');
     exit;
 }
 
 $message = '';
 $message_type = 'success';
+$saved_portal_url = '';
+$saved_stakeholder_name = '';
 
 $conn->query("CREATE TABLE IF NOT EXISTS project_work_types (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -86,6 +83,11 @@ if ($colCheckAptPrice && $colCheckAptPrice->num_rows === 0) {
     $conn->query("ALTER TABLE project_stakeholders ADD COLUMN apartment_meter_price DECIMAL(14,2) NOT NULL DEFAULT 0.00 AFTER apartment_percentage");
 }
 
+$colCheckContract = $conn->query("SHOW COLUMNS FROM project_stakeholders LIKE 'contract_file'");
+if ($colCheckContract && $colCheckContract->num_rows === 0) {
+    $conn->query("ALTER TABLE project_stakeholders ADD COLUMN contract_file VARCHAR(255) NULL AFTER apartment_meter_price");
+}
+
 $colCheck2 = $conn->query("SHOW COLUMNS FROM project_stakeholder_subparts LIKE 'metric_type'");
 if ($colCheck2 && $colCheck2->num_rows === 0) {
     $conn->query("ALTER TABLE project_stakeholder_subparts ADD COLUMN metric_type VARCHAR(30) NOT NULL DEFAULT 'm²' AFTER unit_price");
@@ -96,7 +98,27 @@ if ($colCheck3 && $colCheck3->num_rows === 0) {
     $conn->query("ALTER TABLE project_stakeholder_subparts ADD COLUMN currency_type VARCHAR(20) NOT NULL DEFAULT 'USD' AFTER metric_type");
 }
 
+ensure_stakeholder_access_column($conn);
+backfill_stakeholder_tokens($conn);
+
+$contractUploadDir = dirname(__DIR__) . '/data/contracts/';
+
+$validWorkTypeKeys = [];
+$vwtRes = $conn->query("SELECT work_type_key FROM project_work_types WHERE is_active = 1");
+if ($vwtRes) {
+    while ($vwtRow = $vwtRes->fetch_assoc()) {
+        $validWorkTypeKeys[] = $vwtRow['work_type_key'];
+    }
+}
+$validMetricTypes = ['m²', 'm', 'per_apartment'];
+$validCurrencyTypes = ['IQD', 'USD', 'EUR', 'GBP', 'AED', 'SAR', '$', '€', '£'];
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verify_csrf_token($_POST['csrf_token'] ?? null)) {
+        http_response_code(403);
+        exit('Invalid or expired request.');
+    }
+
     if (isset($_POST['save_stakeholder'])) {
         $stakeholder_id = (int)($_POST['stakeholder_id'] ?? 0);
         $stakeholder_name = trim($_POST['stakeholder_name'] ?? '');
@@ -107,30 +129,76 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $apartment_percentage = (float)($_POST['apartment_percentage'] ?? 0);
         $apartment_meter_price = (float)($_POST['apartment_meter_price'] ?? 0);
 
-        if ($cash_percentage < 0) {
-            $cash_percentage = 0;
-        }
-        if ($apartment_percentage < 0) {
-            $apartment_percentage = 0;
-        }
-        if ($cash_percentage > 100) {
-            $cash_percentage = 100;
-        }
-        if ($apartment_percentage > 100) {
-            $apartment_percentage = 100;
-        }
-        if ($apartment_meter_price < 0) {
-            $apartment_meter_price = 0;
+        if ($cash_percentage < 0) $cash_percentage = 0;
+        if ($apartment_percentage < 0) $apartment_percentage = 0;
+        if ($cash_percentage > 100) $cash_percentage = 100;
+        if ($apartment_percentage > 100) $apartment_percentage = 100;
+        if ($apartment_meter_price < 0) $apartment_meter_price = 0;
+
+        // Handle contract file upload
+        $new_contract_file = null;
+        $upload_error = '';
+        if (!empty($_FILES['contract_file']['name'])) {
+            $allowed_types = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            $allowed_exts  = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'webp'];
+            $file_tmp  = $_FILES['contract_file']['tmp_name'];
+            $file_size = $_FILES['contract_file']['size'];
+            $file_ext  = strtolower(pathinfo($_FILES['contract_file']['name'], PATHINFO_EXTENSION));
+            $finfo     = new finfo(FILEINFO_MIME_TYPE);
+            $mime      = $finfo->file($file_tmp);
+
+            if ($_FILES['contract_file']['error'] !== UPLOAD_ERR_OK) {
+                $upload_error = 'File upload error.';
+            } elseif ($file_size > 10 * 1024 * 1024) {
+                $upload_error = 'Contract file must be under 10 MB.';
+            } elseif (!in_array($file_ext, $allowed_exts, true) || !in_array($mime, $allowed_types, true)) {
+                $upload_error = 'Only PDF or image files (JPG, PNG, GIF, WEBP) are allowed.';
+            } else {
+                $new_contract_file = 'contract_' . time() . '_' . bin2hex(random_bytes(4)) . '.' . $file_ext;
+                if (!move_uploaded_file($file_tmp, $contractUploadDir . $new_contract_file)) {
+                    $upload_error = 'Failed to save the contract file.';
+                    $new_contract_file = null;
+                }
+            }
         }
 
-        if (($cash_percentage + $apartment_percentage) > 100.0001) {
+        if ($upload_error) {
+            $message = $upload_error;
+            $message_type = 'error';
+        } elseif ($work_type_key !== '' && !in_array($work_type_key, $validWorkTypeKeys, true)) {
+            $message = 'Invalid work type selected.';
+            $message_type = 'error';
+        } elseif (($cash_percentage + $apartment_percentage) > 100.0001) {
             $message = 'Cash % and Apartment % cannot be more than 100 in total.';
             $message_type = 'error';
         } elseif ($stakeholder_name && $work_type_key) {
             if ($stakeholder_id > 0) {
-                $stmt = $conn->prepare('UPDATE project_stakeholders SET stakeholder_name = ?, stakeholder_date = ?, work_type_key = ?, cash_percentage = ?, apartment_percentage = ?, apartment_meter_price = ? WHERE id = ?');
-                $stmt->bind_param('sssdddi', $stakeholder_name, $stakeholder_date, $work_type_key, $cash_percentage, $apartment_percentage, $apartment_meter_price, $stakeholder_id);
+                // Fetch old contract file to delete if replaced
+                $oldFileStmt = $conn->prepare('SELECT contract_file FROM project_stakeholders WHERE id = ?');
+                $oldFileStmt->bind_param('i', $stakeholder_id);
+                $oldFileStmt->execute();
+                $oldFileRow = $oldFileStmt->get_result();
+                $oldFile = $oldFileRow ? $oldFileRow->fetch_assoc() : null;
+                $oldFileStmt->close();
+
+                if ($new_contract_file !== null) {
+                    $stmt = $conn->prepare('UPDATE project_stakeholders SET stakeholder_name = ?, stakeholder_date = ?, work_type_key = ?, cash_percentage = ?, apartment_percentage = ?, apartment_meter_price = ?, contract_file = ? WHERE id = ?');
+                    $stmt->bind_param('sssdddsi', $stakeholder_name, $stakeholder_date, $work_type_key, $cash_percentage, $apartment_percentage, $apartment_meter_price, $new_contract_file, $stakeholder_id);
+                } else {
+                    $stmt = $conn->prepare('UPDATE project_stakeholders SET stakeholder_name = ?, stakeholder_date = ?, work_type_key = ?, cash_percentage = ?, apartment_percentage = ?, apartment_meter_price = ? WHERE id = ?');
+                    $stmt->bind_param('sssdddi', $stakeholder_name, $stakeholder_date, $work_type_key, $cash_percentage, $apartment_percentage, $apartment_meter_price, $stakeholder_id);
+                }
                 if ($stmt->execute()) {
+                    // Delete old file if replaced
+                    if ($new_contract_file !== null && !empty($oldFile['contract_file'])) {
+                        $oldPath = $contractUploadDir . basename($oldFile['contract_file']);
+                        if (file_exists($oldPath)) @unlink($oldPath);
+                    }
+                    $token = ensure_stakeholder_token_for_id($conn, $stakeholder_id);
+                    if ($token) {
+                        $saved_portal_url = stakeholder_portal_url($token);
+                        $saved_stakeholder_name = $stakeholder_name;
+                    }
                     $message = 'Stakeholder updated successfully.';
                 } else {
                     $message = 'Error updating stakeholder.';
@@ -138,10 +206,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 $stmt->close();
             } else {
-                $stmt = $conn->prepare('INSERT INTO project_stakeholders (stakeholder_name, stakeholder_date, work_type_key, cash_percentage, apartment_percentage, apartment_meter_price, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)');
-                $stmt->bind_param('sssdddi', $stakeholder_name, $stakeholder_date, $work_type_key, $cash_percentage, $apartment_percentage, $apartment_meter_price, $user_id);
+                $access_token = generate_stakeholder_token();
+                $stmt = $conn->prepare('INSERT INTO project_stakeholders (stakeholder_name, stakeholder_date, work_type_key, cash_percentage, apartment_percentage, apartment_meter_price, contract_file, access_token, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                $stmt->bind_param('sssdddssi', $stakeholder_name, $stakeholder_date, $work_type_key, $cash_percentage, $apartment_percentage, $apartment_meter_price, $new_contract_file, $access_token, $user_id);
                 if ($stmt->execute()) {
-                    $message = 'Stakeholder added successfully.';
+                    $new_stakeholder_id = (int)$conn->insert_id;
+                    $token = ensure_stakeholder_token_for_id($conn, $new_stakeholder_id);
+                    if ($token) {
+                        $saved_portal_url = stakeholder_portal_url($token);
+                        $saved_stakeholder_name = $stakeholder_name;
+                    }
+                    $message = 'Stakeholder added successfully. Personal link created — copy it below and send to them.';
                 } else {
                     $message = 'Error adding stakeholder (may already exist for this work type).';
                     $message_type = 'error';
@@ -157,6 +232,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['delete_stakeholder'])) {
         $stakeholder_id = (int)($_POST['stakeholder_id'] ?? 0);
         if ($stakeholder_id > 0) {
+            // Fetch contract file before deletion
+            $fileStmt = $conn->prepare('SELECT contract_file FROM project_stakeholders WHERE id = ?');
+            $fileStmt->bind_param('i', $stakeholder_id);
+            $fileStmt->execute();
+            $fileRow = $fileStmt->get_result();
+            $fileData = $fileRow ? $fileRow->fetch_assoc() : null;
+            $fileStmt->close();
+
             $stmt = $conn->prepare('DELETE FROM project_stakeholder_subparts WHERE stakeholder_id = ?');
             $stmt->bind_param('i', $stakeholder_id);
             $stmt->execute();
@@ -165,6 +248,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $conn->prepare('DELETE FROM project_stakeholders WHERE id = ?');
             $stmt->bind_param('i', $stakeholder_id);
             if ($stmt->execute()) {
+                // Delete contract file if exists
+                if (!empty($fileData['contract_file'])) {
+                    $filePath = $contractUploadDir . basename($fileData['contract_file']);
+                    if (file_exists($filePath)) @unlink($filePath);
+                }
                 $message = 'Stakeholder deleted successfully.';
             } else {
                 $message = 'Error deleting stakeholder.';
@@ -227,6 +315,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->close();
         }
     }
+
+    if (isset($_POST['regenerate_portal_link'])) {
+        $stakeholder_id = (int)($_POST['stakeholder_id'] ?? 0);
+        if ($stakeholder_id > 0) {
+            $new_token = generate_stakeholder_token();
+            $stmt = $conn->prepare('UPDATE project_stakeholders SET access_token = ? WHERE id = ?');
+            $stmt->bind_param('si', $new_token, $stakeholder_id);
+            if ($stmt->execute()) {
+                $token = ensure_stakeholder_token_for_id($conn, $stakeholder_id);
+                if ($token) {
+                    $saved_portal_url = stakeholder_portal_url($token);
+                    $nameStmt = $conn->prepare('SELECT stakeholder_name FROM project_stakeholders WHERE id = ? LIMIT 1');
+                    $nameStmt->bind_param('i', $stakeholder_id);
+                    $nameStmt->execute();
+                    $nameRes = $nameStmt->get_result();
+                    if ($nameRow = $nameRes->fetch_assoc()) {
+                        $saved_stakeholder_name = $nameRow['stakeholder_name'];
+                    }
+                    $nameStmt->close();
+                }
+                $message = 'New personal link created. The old link no longer works.';
+            } else {
+                $message = 'Error regenerating portal link.';
+                $message_type = 'error';
+            }
+            $stmt->close();
+        }
+    }
 }
 
 $stakeholders = $conn->query("SELECT ps.*, u.username AS created_by_name, wt.work_type_name,
@@ -246,6 +362,28 @@ $workTypes = [];
 if ($workTypesForStakeholders && $workTypesForStakeholders->num_rows > 0) {
     while ($wt = $workTypesForStakeholders->fetch_assoc()) {
         $workTypes[] = $wt;
+    }
+}
+
+backfill_stakeholder_tokens($conn);
+
+$portalLinks = [];
+$portalLinksRes = $conn->query("
+    SELECT ps.id, ps.stakeholder_name, ps.access_token,
+           COALESCE(wt.work_type_name, ps.work_type_key) AS work_type_name
+    FROM project_stakeholders ps
+    LEFT JOIN project_work_types wt ON wt.work_type_key = ps.work_type_key
+    WHERE ps.is_active = 1
+    ORDER BY ps.stakeholder_name
+");
+if ($portalLinksRes) {
+    while ($pl = $portalLinksRes->fetch_assoc()) {
+        $token = ensure_stakeholder_token_for_id($conn, (int)$pl['id']);
+        if ($token) {
+            $pl['access_token'] = $token;
+            $pl['portal_url'] = stakeholder_portal_url($token);
+            $portalLinks[] = $pl;
+        }
     }
 }
 
@@ -273,12 +411,33 @@ require_once 'partials/header.php';
                 </div>
             <?php endif; ?>
 
+            <?php if ($saved_portal_url): ?>
+                <div class="portal-link-created-alert">
+                    <div class="portal-link-created-head">
+                        <i class="fas fa-link"></i>
+                        <div>
+                            <strong>Personal link<?php echo $saved_stakeholder_name ? ' for ' . htmlspecialchars($saved_stakeholder_name) : ''; ?></strong>
+                            <p>Copy this link and send it to the stakeholder. They can open it without logging in.</p>
+                        </div>
+                    </div>
+                    <div class="portal-link-copy-wrap portal-link-copy-wrap-alert">
+                        <input type="text" class="portal-link-input" readonly value="<?php echo htmlspecialchars($saved_portal_url); ?>" id="saved-portal-link">
+                        <button type="button" class="btn btn-primary portal-copy-btn" onclick="copyPortalLink(document.getElementById('saved-portal-link').value, this)"><i class="fas fa-copy"></i> Copy link</button>
+                        <a class="btn btn-secondary portal-preview-btn" href="<?php echo htmlspecialchars($saved_portal_url); ?>" target="_blank"><i class="fas fa-eye"></i> Open page</a>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <!-- Removed separate Stakeholder Personal Links table to simplify UI.
+                 Personal links are available via the action buttons on each stakeholder card. -->
+
             <div class="stakeholders-layout">
                 <div class="panel-card">
                     <div class="card-header">
                         <h2><i class="fas fa-user-plus"></i> Add / Edit Stakeholder</h2>
                     </div>
-                    <form method="POST" id="stakeholder-form" class="settings-form">
+                    <form method="POST" id="stakeholder-form" class="settings-form" enctype="multipart/form-data">
+                        <?php echo csrf_field(); ?>
                         <input type="hidden" name="stakeholder_id" id="stakeholder_id" value="">
                         <div class="form-group">
                             <label for="stakeholder_name">Stakeholder Name</label>
@@ -311,9 +470,23 @@ require_once 'partials/header.php';
                                 <input type="number" name="apartment_percentage" id="apartment_percentage" min="0" max="100" step="0.01" value="0" placeholder="e.g., 40">
                             </div>
                             <div class="form-group">
-                                <label for="apartment_meter_price">Apartment Price per m² ($)</label>
+                                <label for="apartment_meter_price">Apt. Price/m² ($)</label>
                                 <input type="number" name="apartment_meter_price" id="apartment_meter_price" min="0" step="0.01" value="0" placeholder="e.g., 12000">
                             </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="contract_file"><i class="fas fa-file-contract"></i> Contract Scan (PDF or Image)</label>
+                            <input type="file" name="contract_file" id="contract_file" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp">
+                            <span id="current-contract-hint" class="contract-hint" style="display:none;"></span>
+                        </div>
+                        <div id="stakeholder-portal-link-box" class="stakeholder-form-portal-box" style="display:none;">
+                            <label><i class="fas fa-link"></i> Personal link for this stakeholder</label>
+                            <div class="portal-link-copy-wrap">
+                                <input type="text" class="portal-link-input" readonly id="stakeholder_form_portal_url" value="">
+                                <button type="button" class="btn btn-sm btn-primary portal-copy-btn" onclick="copyPortalLink(document.getElementById('stakeholder_form_portal_url').value, this)"><i class="fas fa-copy"></i> Copy</button>
+                                <a class="btn btn-sm btn-secondary portal-preview-btn" id="stakeholder_form_portal_open" href="#" target="_blank"><i class="fas fa-eye"></i> Open</a>
+                            </div>
+                            <small>Send this link after saving. No login required for the stakeholder.</small>
                         </div>
                         <div class="form-actions">
                             <button type="submit" name="save_stakeholder" class="btn btn-primary"><i class="fas fa-save"></i> Save Stakeholder</button>
@@ -325,6 +498,19 @@ require_once 'partials/header.php';
                 <div class="panel-card">
                     <div class="card-header">
                         <h2><i class="fas fa-list"></i> Stakeholder Work & Subparts</h2>
+                    </div>
+
+                    <div class="stakeholder-share-guide">
+                        <div class="share-guide-icon"><i class="fas fa-paper-plane"></i></div>
+                        <div>
+                            <h3>Send a personal link to each stakeholder</h3>
+                            <ol>
+                                <li>Find the stakeholder below and click <strong>Copy link</strong></li>
+                                <li>Send it by WhatsApp, SMS, or email</li>
+                                <li>They open it in their browser — <strong>no username or password</strong> needed</li>
+                            </ol>
+                            <p class="share-guide-note"><i class="fas fa-shield-alt"></i> Each link shows only that person's own profile, prices, work, and payments.</p>
+                        </div>
                     </div>
 
                     <?php if (!$stakeholders || $stakeholders->num_rows === 0): ?>
@@ -388,16 +574,34 @@ require_once 'partials/header.php';
                                                 <?php if (!empty($st['stakeholder_date'])): ?>
                                                     <span class="stakeholder-badge stakeholder-date-badge"><?php echo htmlspecialchars($st['stakeholder_date']); ?></span>
                                                 <?php endif; ?>
+                                                <?php if (!empty($st['contract_file'])): ?>
+                                                    <?php if (!empty($st['access_token'])): ?>
+                                                    <a class="stakeholder-badge stakeholder-contract-badge" href="<?php echo htmlspecialchars(stakeholder_contract_url($st['access_token'])); ?>" target="_blank" title="View Contract"><i class="fas fa-file-contract"></i> Contract</a>
+                                                    <?php endif; ?>
+                                                <?php endif; ?>
                                             </p>
                                         </div>
                                         <div class="stakeholder-actions">
-                                            <button type="button" class="action-btn edit-btn" onclick="editStakeholder(<?php echo (int)$st['id']; ?>, '<?php echo htmlspecialchars($st['stakeholder_name'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($st['work_type_key'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($st['stakeholder_date'] ?? '', ENT_QUOTES); ?>', '<?php echo number_format((float)($st['cash_percentage'] ?? 100), 2, '.', ''); ?>', '<?php echo number_format((float)($st['apartment_percentage'] ?? 0), 2, '.', ''); ?>', '<?php echo number_format((float)($st['apartment_meter_price'] ?? 0), 2, '.', ''); ?>')"><i class="fas fa-edit"></i></button>
+                                            <?php if (!empty($st['access_token'])): ?>
+                                            <?php $portalUrl = stakeholder_portal_url($st['access_token']); ?>
+                                            <button type="button" class="action-btn share-btn share-btn-labeled" title="Copy personal link" onclick="copyPortalLink('<?php echo htmlspecialchars($portalUrl, ENT_QUOTES); ?>', this)"><i class="fas fa-link"></i><span>Copy link</span></button>
+                                            <a class="action-btn view-portal-btn view-portal-btn-labeled" href="<?php echo htmlspecialchars($portalUrl); ?>" target="_blank" title="Preview their page"><i class="fas fa-eye"></i><span>Preview</span></a>
+                                            <form method="POST" onsubmit="return confirm('Create a new link? The old link will stop working immediately.');" style="display:inline;">
+                                                <?php echo csrf_field(); ?>
+                                                <input type="hidden" name="stakeholder_id" value="<?php echo (int)$st['id']; ?>">
+                                                <button type="submit" name="regenerate_portal_link" class="action-btn regenerate-btn regenerate-btn-labeled" title="Create new link"><i class="fas fa-sync-alt"></i><span>New link</span></button>
+                                            </form>
+                                            <?php endif; ?>
+                                            <button type="button" class="action-btn edit-btn" onclick="editStakeholder(<?php echo (int)$st['id']; ?>, '<?php echo htmlspecialchars($st['stakeholder_name'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($st['work_type_key'], ENT_QUOTES); ?>', '<?php echo htmlspecialchars($st['stakeholder_date'] ?? '', ENT_QUOTES); ?>', '<?php echo number_format((float)($st['cash_percentage'] ?? 100), 2, '.', ''); ?>', '<?php echo number_format((float)($st['apartment_percentage'] ?? 0), 2, '.', ''); ?>', '<?php echo number_format((float)($st['apartment_meter_price'] ?? 0), 2, '.', ''); ?>', '<?php echo htmlspecialchars($st['contract_file'] ?? '', ENT_QUOTES); ?>', '<?php echo !empty($st['access_token']) ? htmlspecialchars(stakeholder_portal_url($st['access_token']), ENT_QUOTES) : ''; ?>', '<?php echo !empty($st['access_token']) ? htmlspecialchars(stakeholder_contract_url($st['access_token']), ENT_QUOTES) : ''; ?>')"><i class="fas fa-edit"></i></button>
                                             <form method="POST" onsubmit="return confirm('Delete stakeholder and all subparts?');" style="display:inline;">
+                                                <?php echo csrf_field(); ?>
                                                 <input type="hidden" name="stakeholder_id" value="<?php echo (int)$st['id']; ?>">
                                                 <button type="submit" name="delete_stakeholder" class="action-btn delete-btn"><i class="fas fa-trash"></i></button>
                                             </form>
                                         </div>
                                     </div>
+
+                                    <!-- Personal link is available via the action buttons above; removed expanded link row for simplicity -->
 
                                     <div class="subparts-table-wrap">
                                         <table class="data-table subparts-table">
@@ -435,6 +639,7 @@ require_once 'partials/header.php';
                                                                 onclick="prefillSubpartForm(<?php echo (int)$st['id']; ?>, <?php echo (int)$sp['id']; ?>, '<?php echo htmlspecialchars($sp['subpart_name'], ENT_QUOTES); ?>', '<?php echo number_format((float)$sp['unit_price'], 2, '.', ''); ?>', '<?php echo htmlspecialchars($sp['metric_type'] ?? 'm²', ENT_QUOTES); ?>', '<?php echo htmlspecialchars($sp['currency_type'] ?? 'USD', ENT_QUOTES); ?>')"
                                                             ><i class="fas fa-edit"></i></button>
                                                             <form method="POST" style="display:inline;">
+                                                                <?php echo csrf_field(); ?>
                                                                 <input type="hidden" name="subpart_id" value="<?php echo (int)$sp['id']; ?>">
                                                                 <button type="submit" name="delete_subpart" class="action-btn delete-btn" title="Delete" onclick="return confirm('Delete this subpart?');"><i class="fas fa-trash"></i></button>
                                                             </form>
@@ -447,6 +652,7 @@ require_once 'partials/header.php';
                                             <tr>
                                                 <td colspan="5">
                                                     <form method="POST" class="subpart-add-form">
+                                                        <?php echo csrf_field(); ?>
                                                         <input type="hidden" name="subpart_id" id="subpart-id-<?php echo (int)$st['id']; ?>" value="">
                                                         <input type="hidden" name="stakeholder_id" value="<?php echo (int)$st['id']; ?>">
                                                         <input type="text" name="subpart_name" id="subpart-name-<?php echo (int)$st['id']; ?>" placeholder="New subpart (e.g., ceiling, walls)" required>
@@ -485,7 +691,30 @@ require_once 'partials/header.php';
 </div>
 
 <script>
-function editStakeholder(id, name, workType, stakeholderDate, cashPercentage, apartmentPercentage, apartmentMeterPrice) {
+function copyPortalLink(url, btn) {
+    if (!url) return;
+    var done = function() {
+        if (!btn) return;
+        var original = btn.innerHTML;
+        var isLabeled = btn.classList.contains('share-btn-labeled') || btn.classList.contains('portal-copy-btn');
+        btn.innerHTML = isLabeled ? '<i class="fas fa-check"></i> Copied!' : '<i class="fas fa-check"></i>';
+        btn.classList.add('copied');
+        setTimeout(function() {
+            btn.innerHTML = original;
+            btn.classList.remove('copied');
+        }, 2000);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(done).catch(function() {
+            window.prompt('Copy this link:', url);
+        });
+    } else {
+        window.prompt('Copy this link:', url);
+        done();
+    }
+}
+
+function editStakeholder(id, name, workType, stakeholderDate, cashPercentage, apartmentPercentage, apartmentMeterPrice, contractFile, portalUrl, contractUrl) {
     document.getElementById('stakeholder_id').value = id;
     document.getElementById('stakeholder_name').value = name;
     document.getElementById('stakeholder_date').value = stakeholderDate || '';
@@ -493,12 +722,53 @@ function editStakeholder(id, name, workType, stakeholderDate, cashPercentage, ap
     document.getElementById('cash_percentage').value = (cashPercentage !== undefined && cashPercentage !== null && cashPercentage !== '') ? cashPercentage : '100';
     document.getElementById('apartment_percentage').value = (apartmentPercentage !== undefined && apartmentPercentage !== null && apartmentPercentage !== '') ? apartmentPercentage : '0';
     document.getElementById('apartment_meter_price').value = (apartmentMeterPrice !== undefined && apartmentMeterPrice !== null && apartmentMeterPrice !== '') ? apartmentMeterPrice : '0';
+    var portalBox = document.getElementById('stakeholder-portal-link-box');
+    var portalInput = document.getElementById('stakeholder_form_portal_url');
+    var portalOpen = document.getElementById('stakeholder_form_portal_open');
+    if (portalBox && portalInput && portalOpen) {
+        if (portalUrl) {
+            portalBox.style.display = '';
+            portalInput.value = portalUrl;
+            portalOpen.href = portalUrl;
+        } else {
+            portalBox.style.display = 'none';
+            portalInput.value = '';
+            portalOpen.href = '#';
+        }
+    }
+    var hint = document.getElementById('current-contract-hint');
+    if (hint) {
+        if (contractFile) {
+            hint.style.display = '';
+            // Build with DOM APIs (not innerHTML) so a crafted file name can't
+            // inject markup, and link through the token-gated contract endpoint
+            // rather than the now-denied raw /data/contracts/ path.
+            hint.textContent = '';
+            var icon = document.createElement('i');
+            icon.className = 'fas fa-paperclip';
+            hint.appendChild(icon);
+            hint.appendChild(document.createTextNode(' Current: '));
+            var link = document.createElement('a');
+            link.href = contractUrl || '#';
+            link.target = '_blank';
+            link.textContent = contractFile;
+            hint.appendChild(link);
+            hint.appendChild(document.createTextNode(' — upload a new file to replace it'));
+        } else {
+            hint.style.display = 'none';
+            hint.textContent = '';
+        }
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function resetStakeholderForm() {
     document.getElementById('stakeholder-form').reset();
     document.getElementById('stakeholder_id').value = '';
+    var portalBox = document.getElementById('stakeholder-portal-link-box');
+    if (portalBox) portalBox.style.display = 'none';
+    var hint = document.getElementById('current-contract-hint');
+    if (hint) { hint.style.display = 'none'; hint.innerHTML = ''; }
 }
 
 function prefillSubpartForm(stakeholderId, subpartId, subpartName, unitPrice, metricType, currencyType) {

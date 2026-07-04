@@ -1,11 +1,17 @@
 <?php
 session_start();
 require_once '../config.php';
+require_once 'includes/permissions.php';
 
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
     echo json_encode(['success' => false, 'message' => 'Not authenticated']);
+    exit();
+}
+
+if (!in_array('data_entry', get_user_permissions($conn, (int)$_SESSION['user_id']), true)) {
+    echo json_encode(['success' => false, 'message' => 'Access denied']);
     exit();
 }
 

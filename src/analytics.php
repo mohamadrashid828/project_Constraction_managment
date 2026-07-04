@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../config.php';
+require_once 'includes/permissions.php';
 
 if (empty($_SESSION['user_id'])) {
 	header('Location: index.html');
@@ -8,109 +9,111 @@ if (empty($_SESSION['user_id'])) {
 }
 
 $user_id = (int)$_SESSION['user_id'];
-$stmt = $conn->prepare('SELECT p.name FROM permissions p JOIN role_permissions rp ON p.id = rp.permission_id JOIN users u ON rp.role_id = u.role_id WHERE u.id = ?');
-$stmt->bind_param('i', $user_id);
-$stmt->execute();
-$res = $stmt->get_result();
-$permissions = [];
-while ($row = $res->fetch_assoc()) {
-	$permissions[] = $row['name'];
-}
-$stmt->close();
+$permissions = get_user_permissions($conn, $user_id);
 
-if (!in_array('data_entry', $permissions, true) && !in_array('project_settings', $permissions, true)) {
+if (!in_array('analytics', $permissions, true)) {
 	header('Location: dashboard.php?error=access_denied');
 	exit;
 }
 
-$summary = [
-	'buildings' => 0,
-	'apartments' => 0,
-	'gechkari_entries' => 0,
-	'generic_entries' => 0,
-	'total_value' => 0,
+// ── Shared helpers ──────────────────────────────────────────────────────────
+function an_money(float $v, string $cur = 'IQD'): string
+{
+	$decimals = ($cur === 'USD' && fmod($v, 1.0) != 0.0) ? 2 : 0;
+	$n = number_format($v, $decimals);
+	return $cur === 'USD' ? '$' . $n : $n . ' IQD';
+}
+
+// The "Gechkari" quick-entry feature stores into the older `measurements`
+// table (work_type_id = 1) rather than `project_work_entries`; every query
+// below treats both as one "work entries" concept via this CTE, so the
+// two-table split is an implementation detail the page never surfaces.
+$unifiedCte = "
+	WITH unified_entries AS (
+		SELECT m.id, m.measurement_date AS entry_date, 'Gechkari' AS work_type_name,
+		       m.total_price, 'USD' AS currency_type,
+		       CASE WHEN m.status = 'approved' THEN 'accepted' ELSE m.status END AS status,
+		       m.notes, m.created_at
+		FROM measurements m WHERE m.work_type_id = 1
+		UNION ALL
+		SELECT e.id, e.work_date AS entry_date, COALESCE(t.work_type_name, e.work_type_key) AS work_type_name,
+		       e.total_price, e.currency_type, e.status, e.notes, e.created_at
+		FROM project_work_entries e
+		LEFT JOIN project_work_types t ON t.work_type_key = e.work_type_key
+	)
+";
+
+$statusMeta = [
+	'accepted' => ['label' => 'Approved',     'class' => 'ok'],
+	'medium'   => ['label' => 'Under Review', 'class' => 'warn'],
+	'draft'    => ['label' => 'Waiting',      'class' => 'muted'],
+	'rejected' => ['label' => 'Rejected',     'class' => 'bad'],
 ];
-
-$result = $conn->query("SELECT COUNT(*) AS c FROM buildings");
-if ($result && ($row = $result->fetch_assoc())) {
-	$summary['buildings'] = (int)$row['c'];
+function an_status(array $meta, string $raw): array
+{
+	$key = strtolower(trim($raw));
+	return $meta[$key] ?? ['label' => ucfirst($key ?: 'Unknown'), 'class' => 'muted'];
 }
 
-$result = $conn->query("SELECT COUNT(*) AS c FROM apartments");
-if ($result && ($row = $result->fetch_assoc())) {
-	$summary['apartments'] = (int)$row['c'];
-}
+// ── Project structure ────────────────────────────────────────────────────────
+$structure = $conn->query("
+	SELECT
+		(SELECT COUNT(*) FROM buildings)  AS buildings,
+		(SELECT COUNT(*) FROM floors)     AS floors,
+		(SELECT COUNT(*) FROM apartments) AS apartments
+")->fetch_assoc();
 
-$result = $conn->query("SELECT COUNT(*) AS c, COALESCE(SUM(total_price), 0) AS total_value FROM measurements WHERE work_type_id = 1");
-if ($result && ($row = $result->fetch_assoc())) {
-	$summary['gechkari_entries'] = (int)$row['c'];
-	$summary['total_value'] += (float)$row['total_value'];
-}
+// ── Unified work-entry summary: counts + value split by currency ───────────
+$entryCount = 0;
+$approvedByCur = [];
+$reviewCount = 0;   // draft + medium: awaiting a decision
+$rejectedCount = 0;
 
-$conn->query("CREATE TABLE IF NOT EXISTS project_work_entries (
-	id INT AUTO_INCREMENT PRIMARY KEY,
-	work_date DATE NOT NULL,
-	engineer_name VARCHAR(180) NOT NULL,
-	work_type_key VARCHAR(80) NOT NULL,
-	stakeholder_id INT NULL,
-	subpart_id INT NULL,
-	quantity DECIMAL(12,2) NOT NULL DEFAULT 0,
-	unit_price DECIMAL(12,2) NOT NULL DEFAULT 0,
-	total_price DECIMAL(14,2) NOT NULL DEFAULT 0,
-	metric_type VARCHAR(30) NOT NULL DEFAULT 'unit',
-	currency_type VARCHAR(20) NOT NULL DEFAULT 'USD',
-	building_id INT NOT NULL,
-	floor_id INT NOT NULL,
-	apartment_id INT NOT NULL,
-	notes TEXT NULL,
-	status VARCHAR(30) NOT NULL DEFAULT 'draft',
-	created_by INT NULL,
-	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-	INDEX idx_work_type_key (work_type_key),
-	INDEX idx_apartment (apartment_id),
-	INDEX idx_work_date (work_date)
-)");
-
-$result = $conn->query("SELECT COUNT(*) AS c, COALESCE(SUM(total_price), 0) AS total_value FROM project_work_entries");
-if ($result && ($row = $result->fetch_assoc())) {
-	$summary['generic_entries'] = (int)$row['c'];
-	$summary['total_value'] += (float)$row['total_value'];
-}
-
-$chartLabels = [];
-$chartValues = [];
-$chartQuery = $conn->query("SELECT label, total_value FROM (
-	SELECT 'Gechkari' AS label, COALESCE(SUM(total_price), 0) AS total_value FROM measurements WHERE work_type_id = 1
-	UNION ALL
-	SELECT COALESCE(pwt.work_type_name, pwe.work_type_key) AS label, COALESCE(SUM(pwe.total_price), 0) AS total_value
-	FROM project_work_entries pwe
-	LEFT JOIN project_work_types pwt ON pwt.work_type_key = pwe.work_type_key
-	GROUP BY COALESCE(pwt.work_type_name, pwe.work_type_key)
-) totals WHERE total_value > 0 ORDER BY total_value DESC LIMIT 8");
-if ($chartQuery) {
-	while ($row = $chartQuery->fetch_assoc()) {
-		$chartLabels[] = $row['label'];
-		$chartValues[] = (float)$row['total_value'];
+$res = $conn->query($unifiedCte . " SELECT status, currency_type, COUNT(*) c, COALESCE(SUM(total_price),0) v
+                                    FROM unified_entries GROUP BY status, currency_type");
+while ($res && $r = $res->fetch_assoc()) {
+	$st = strtolower(trim((string)$r['status']));
+	$cur = $r['currency_type'] ?: 'IQD';
+	$c = (int)$r['c'];
+	$v = (float)$r['v'];
+	$entryCount += $c;
+	if ($st === 'accepted') {
+		$approvedByCur[$cur] = ($approvedByCur[$cur] ?? 0) + $v;
+	} elseif ($st === 'draft' || $st === 'medium') {
+		$reviewCount += $c;
+	} elseif ($st === 'rejected') {
+		$rejectedCount += $c;
 	}
 }
 
+// ── Value by Category chart (approved work only, dominant currency) ────────
+$dominantCur = 'IQD';
+$best = -1;
+foreach ($approvedByCur as $cur => $v) {
+	if ($v > $best) { $best = $v; $dominantCur = $cur; }
+}
+
+$catValues = [];
+$stmt = $conn->prepare($unifiedCte . " SELECT work_type_name, COALESCE(SUM(total_price),0) v
+                                       FROM unified_entries
+                                       WHERE status = 'accepted' AND currency_type = ?
+                                       GROUP BY work_type_name HAVING v > 0
+                                       ORDER BY v DESC LIMIT 8");
+$stmt->bind_param('s', $dominantCur);
+$stmt->execute();
+$r2 = $stmt->get_result();
+while ($row = $r2->fetch_assoc()) { $catValues[$row['work_type_name']] = (float)$row['v']; }
+$stmt->close();
+$chartLabels = array_keys($catValues);
+$chartValues = array_values($catValues);
+
+// ── Recent activity (latest 8, unified, currency + status aware) ───────────
 $recentRows = [];
-$recentQuery = $conn->query("SELECT * FROM (
-	SELECT measurement_date AS entry_date, 'Gechkari' AS work_type_name, total_price, notes, created_at
-	FROM measurements
-	WHERE work_type_id = 1
-	UNION ALL
-	SELECT pwe.work_date AS entry_date, COALESCE(pwt.work_type_name, pwe.work_type_key) AS work_type_name, pwe.total_price, pwe.notes, pwe.created_at
-	FROM project_work_entries pwe
-	LEFT JOIN project_work_types pwt ON pwt.work_type_key = pwe.work_type_key
-) recent_entries ORDER BY created_at DESC LIMIT 8");
-if ($recentQuery) {
-	while ($row = $recentQuery->fetch_assoc()) {
-		$recentRows[] = $row;
-	}
-}
+$res = $conn->query($unifiedCte . " SELECT entry_date, work_type_name, total_price, currency_type, status, notes
+                                    FROM unified_entries ORDER BY created_at DESC, id DESC LIMIT 8");
+while ($res && $r = $res->fetch_assoc()) { $recentRows[] = $r; }
 
+// ── Report builder filter sources ──────────────────────────────────────────
 $workTypes = [['key' => 'gechkari', 'name' => 'Gechkari']];
 $workTypeSeen = ['gechkari' => true];
 $workTypesQuery = $conn->query("SELECT work_type_key, work_type_name FROM project_work_types WHERE is_active = 1 ORDER BY work_type_name");
@@ -178,37 +181,58 @@ require_once 'partials/header.php';
 		</header>
 
 		<div class="content-wrapper analytics-wrapper">
+
+			<!-- ═══ OVERVIEW ═══ -->
+			<div class="analytics-section-head">
+				<h2><i class="fas fa-gauge-high"></i> Overview</h2>
+				<p>Where things stand right now, at a glance.</p>
+			</div>
+
 			<div class="analytics-kpis">
 				<div class="analytics-kpi-card">
-					<span class="kpi-label">Buildings</span>
-					<strong><?php echo number_format($summary['buildings']); ?></strong>
+					<span class="kpi-label">Work Entries</span>
+					<strong><?php echo number_format($entryCount); ?></strong>
+					<span class="kpi-sub">recorded in total</span>
 				</div>
 				<div class="analytics-kpi-card">
-					<span class="kpi-label">Apartments</span>
-					<strong><?php echo number_format($summary['apartments']); ?></strong>
+					<span class="kpi-label">Approved Value</span>
+					<?php if ($approvedByCur): $first = true; foreach ($approvedByCur as $cur => $v): if ($v <= 0) continue; ?>
+						<strong class="<?php echo $first ? '' : 'kpi-strong-sub'; ?>"><?php echo an_money($v, $cur); ?></strong>
+					<?php $first = false; endforeach; else: ?>
+						<strong>0</strong>
+					<?php endif; ?>
+					<span class="kpi-sub">work that's been signed off</span>
 				</div>
 				<div class="analytics-kpi-card">
-					<span class="kpi-label">Gechkari Entries</span>
-					<strong><?php echo number_format($summary['gechkari_entries']); ?></strong>
+					<span class="kpi-label">Awaiting Decision</span>
+					<strong><?php echo number_format($reviewCount); ?></strong>
+					<span class="kpi-sub">entries need a review</span>
 				</div>
 				<div class="analytics-kpi-card">
-					<span class="kpi-label">Other Entries</span>
-					<strong><?php echo number_format($summary['generic_entries']); ?></strong>
+					<span class="kpi-label">Rejected</span>
+					<strong><?php echo number_format($rejectedCount); ?></strong>
+					<span class="kpi-sub">entries turned down</span>
 				</div>
 				<div class="analytics-kpi-card analytics-kpi-card-wide">
-					<span class="kpi-label">Total Recorded Value</span>
-					<strong>$<?php echo number_format($summary['total_value'], 2); ?></strong>
+					<span class="kpi-label">Project Size</span>
+					<strong><?php echo (int)$structure['buildings']; ?> <span class="kpi-unit">buildings</span></strong>
+					<span class="kpi-sub"><?php echo (int)$structure['floors']; ?> floors · <?php echo (int)$structure['apartments']; ?> apartments</span>
 				</div>
 			</div>
 
 			<div class="analytics-grid">
 				<section class="analytics-card">
 					<div class="analytics-card-head">
-						<h2><i class="fas fa-chart-bar"></i> Value by Work Type</h2>
+						<h2><i class="fas fa-chart-bar"></i> Approved Value by Category</h2>
+						<?php if ($chartLabels): ?><span class="analytics-card-note"><?php echo htmlspecialchars($dominantCur); ?></span><?php endif; ?>
 					</div>
+					<?php if ($chartLabels): ?>
 					<div class="analytics-chart-wrap">
 						<canvas id="analysisChart"></canvas>
 					</div>
+					<?php else: ?>
+					<div class="analytics-empty"><i class="fas fa-chart-bar"></i> No approved work yet.</div>
+					<?php endif; ?>
 				</section>
 
 				<section class="analytics-card">
@@ -216,7 +240,7 @@ require_once 'partials/header.php';
 						<h2><i class="fas fa-history"></i> Recent Activity</h2>
 					</div>
 					<?php if (empty($recentRows)): ?>
-						<div class="analytics-empty">No analysis data yet.</div>
+						<div class="analytics-empty"><i class="fas fa-clipboard"></i> No work entries yet.</div>
 					<?php else: ?>
 						<div class="analytics-table-wrap">
 							<table class="analytics-table">
@@ -225,16 +249,16 @@ require_once 'partials/header.php';
 										<th>Date</th>
 										<th>Type</th>
 										<th>Value</th>
-										<th>Notes</th>
+										<th>Status</th>
 									</tr>
 								</thead>
 								<tbody>
-									<?php foreach ($recentRows as $row): ?>
+									<?php foreach ($recentRows as $row): $meta = an_status($statusMeta, $row['status']); ?>
 										<tr>
 											<td><?php echo htmlspecialchars(date('d/m/Y', strtotime((string)$row['entry_date']))); ?></td>
 											<td><?php echo htmlspecialchars((string)$row['work_type_name']); ?></td>
-											<td>$<?php echo number_format((float)$row['total_price'], 2); ?></td>
-											<td class="analytics-notes"><?php echo htmlspecialchars(trim((string)$row['notes']) !== '' ? (string)$row['notes'] : '—'); ?></td>
+											<td><?php echo an_money((float)$row['total_price'], (string)($row['currency_type'] ?: 'IQD')); ?></td>
+											<td><span class="analytics-status analytics-status-<?php echo $meta['class']; ?>"><?php echo $meta['label']; ?></span></td>
 										</tr>
 									<?php endforeach; ?>
 								</tbody>
@@ -244,10 +268,13 @@ require_once 'partials/header.php';
 				</section>
 			</div>
 
+			<!-- ═══ CUSTOM REPORT BUILDER ═══ -->
+			<div class="analytics-section-head analytics-section-head-report">
+				<h2><i class="fas fa-filter"></i> Custom Report Builder</h2>
+				<p>Slice work entries by category, location, stakeholder, date, or status.</p>
+			</div>
+
 			<section class="analytics-card analytics-report-card">
-				<div class="analytics-card-head">
-					<h2><i class="fas fa-filter"></i> Detailed Analysis</h2>
-				</div>
 				<div class="analytics-report-body">
 					<div class="analytics-filter-grid">
 						<div class="analytics-filter-group">
@@ -267,6 +294,16 @@ require_once 'partials/header.php';
 								<?php foreach ($workTypes as $wt): ?>
 									<option value="<?php echo htmlspecialchars($wt['key']); ?>"><?php echo htmlspecialchars($wt['name']); ?></option>
 								<?php endforeach; ?>
+							</select>
+						</div>
+						<div class="analytics-filter-group">
+							<label for="report-status">Status</label>
+							<select id="report-status">
+								<option value="">All Statuses</option>
+								<option value="accepted">Approved</option>
+								<option value="medium">Under Review</option>
+								<option value="draft">Waiting</option>
+								<option value="rejected">Rejected</option>
 							</select>
 						</div>
 						<div class="analytics-filter-group">
@@ -319,7 +356,7 @@ require_once 'partials/header.php';
 						</div>
 						<div class="analytics-mini-card">
 							<span>Total Value</span>
-							<strong id="report-summary-value">$0.00</strong>
+							<strong id="report-summary-value">0</strong>
 						</div>
 					</div>
 
@@ -327,6 +364,7 @@ require_once 'partials/header.php';
 						<section class="analytics-card analytics-card-inner">
 							<div class="analytics-card-head analytics-card-head-inner">
 								<h2><i class="fas fa-chart-pie"></i> Report Chart</h2>
+								<span class="analytics-card-note" id="report-chart-currency"></span>
 							</div>
 							<div class="analytics-chart-wrap analytics-chart-wrap-report">
 								<canvas id="detailAnalysisChart"></canvas>
@@ -370,10 +408,11 @@ require_once 'partials/header.php';
 										<th>Stakeholder</th>
 										<th>Quantity</th>
 										<th>Total</th>
+										<th>Status</th>
 									</tr>
 								</thead>
 								<tbody id="report-details-tbody">
-									<tr><td colspan="8" class="analytics-empty-row">Run a report to see detailed entries.</td></tr>
+									<tr><td colspan="9" class="analytics-empty-row">Run a report to see detailed entries.</td></tr>
 								</tbody>
 							</table>
 						</div>
@@ -389,6 +428,8 @@ const analysisLabels = <?php echo json_encode($chartLabels, JSON_UNESCAPED_UNICO
 const analysisValues = <?php echo json_encode($chartValues, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
 const analyticsFloors = <?php echo json_encode($floorsList, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
 const analyticsApartments = <?php echo json_encode($apartmentsList, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+const statusLabels = { accepted: 'Approved', medium: 'Under Review', draft: 'Waiting', rejected: 'Rejected' };
+const statusClasses = { accepted: 'ok', medium: 'warn', draft: 'muted', rejected: 'bad' };
 
 let detailChartInstance = null;
 
@@ -430,8 +471,26 @@ if (analysisLabels.length > 0) {
 	}
 }
 
-function formatCurrency(value) {
-	return '$' + Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Formats a { IQD: 123, USD: 45 } style map into "123 IQD · $45.00", the
+// same layout used on the Dashboard so a value is never a misleading sum
+// of two different currencies.
+function formatMoney(value, currency) {
+	const cur = currency || 'IQD';
+	const n = Number(value || 0);
+	if (cur === 'USD') {
+		return '$' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+	}
+	return n.toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' IQD';
+}
+
+function formatMoneyByCurrency(byCurrency) {
+	const entries = Object.entries(byCurrency || {}).filter(([, v]) => Math.abs(v) > 0.0001);
+	if (!entries.length) return '0';
+	return entries.map(([cur, v]) => formatMoney(v, cur)).join(' · ');
+}
+
+function dominantValue(byCurrency, dominant) {
+	return (byCurrency && byCurrency[dominant]) ? byCurrency[dominant] : 0;
 }
 
 function fillFloorOptions(buildingId, selectedFloorId = '') {
@@ -468,11 +527,12 @@ function fillApartmentOptions(floorId, selectedApartmentId = '') {
 		});
 }
 
-function renderReportChart(rows) {
+function renderReportChart(rows, dominant) {
 	const ctx = document.getElementById('detailAnalysisChart');
 	if (!ctx) return;
 	if (detailChartInstance) {
 		detailChartInstance.destroy();
+		detailChartInstance = null;
 	}
 
 	if (!rows.length) {
@@ -485,7 +545,7 @@ function renderReportChart(rows) {
 			labels: rows.map(row => row.label),
 			datasets: [{
 				label: 'Total Value',
-				data: rows.map(row => row.total_value),
+				data: rows.map(row => dominantValue(row.total_value_by_currency, dominant)),
 				backgroundColor: 'rgba(99, 102, 241, 0.6)',
 				borderColor: 'rgba(129, 140, 248, 1)',
 				borderWidth: 1.5,
@@ -505,6 +565,14 @@ function renderReportChart(rows) {
 	});
 }
 
+// Escape server-supplied strings before interpolating into innerHTML, so a
+// crafted building/stakeholder/work-type name can't inject script.
+function escHtml(value) {
+	const div = document.createElement('div');
+	div.textContent = String(value == null ? '' : value);
+	return div.innerHTML;
+}
+
 function renderGroupRows(rows) {
 	const tbody = document.getElementById('report-groups-tbody');
 	if (!tbody) return;
@@ -515,10 +583,10 @@ function renderGroupRows(rows) {
 
 	tbody.innerHTML = rows.map(row =>
 		'<tr>' +
-			'<td>' + row.label + '</td>' +
+			'<td>' + escHtml(row.label) + '</td>' +
 			'<td>' + Number(row.entries_count).toLocaleString() + '</td>' +
-			'<td>' + Number(row.total_quantity).toFixed(2) + ' ' + (row.primary_metric || '') + '</td>' +
-			'<td>' + formatCurrency(row.total_value) + '</td>' +
+			'<td>' + Number(row.total_quantity).toFixed(2) + ' ' + escHtml(row.primary_metric || '') + '</td>' +
+			'<td>' + escHtml(formatMoneyByCurrency(row.total_value_by_currency)) + '</td>' +
 		'</tr>'
 	).join('');
 }
@@ -527,20 +595,21 @@ function renderDetailRows(rows) {
 	const tbody = document.getElementById('report-details-tbody');
 	if (!tbody) return;
 	if (!rows.length) {
-		tbody.innerHTML = '<tr><td colspan="8" class="analytics-empty-row">No detailed entries found for these filters.</td></tr>';
+		tbody.innerHTML = '<tr><td colspan="9" class="analytics-empty-row">No detailed entries found for these filters.</td></tr>';
 		return;
 	}
 
 	tbody.innerHTML = rows.map(row =>
 		'<tr>' +
-			'<td>' + row.entry_date_display + '</td>' +
-			'<td>' + row.work_type_name + '</td>' +
-			'<td>' + row.building_name + '</td>' +
-			'<td>' + row.floor_name + '</td>' +
-			'<td>' + row.apartment_label + '</td>' +
-			'<td>' + row.stakeholder_name + '</td>' +
-			'<td>' + Number(row.quantity).toFixed(2) + ' ' + row.metric_type + '</td>' +
-			'<td>' + formatCurrency(row.total_price) + '</td>' +
+			'<td>' + escHtml(row.entry_date_display) + '</td>' +
+			'<td>' + escHtml(row.work_type_name) + '</td>' +
+			'<td>' + escHtml(row.building_name) + '</td>' +
+			'<td>' + escHtml(row.floor_name) + '</td>' +
+			'<td>' + escHtml(row.apartment_label) + '</td>' +
+			'<td>' + escHtml(row.stakeholder_name) + '</td>' +
+			'<td>' + Number(row.quantity).toFixed(2) + ' ' + escHtml(row.metric_type) + '</td>' +
+			'<td>' + escHtml(formatMoney(row.total_price, row.currency_type)) + '</td>' +
+			'<td><span class="analytics-status analytics-status-' + escHtml(statusClasses[row.status] || 'muted') + '">' + escHtml(row.status_label) + '</span></td>' +
 		'</tr>'
 	).join('');
 }
@@ -549,6 +618,7 @@ function runDetailedReport() {
 	const params = new URLSearchParams({
 		breakdown: document.getElementById('report-breakdown').value,
 		work_type_key: document.getElementById('report-work-type').value,
+		status: document.getElementById('report-status').value,
 		building_id: document.getElementById('report-building').value,
 		floor_id: document.getElementById('report-floor').value,
 		apartment_id: document.getElementById('report-apartment').value,
@@ -556,21 +626,33 @@ function runDetailedReport() {
 		date_to: document.getElementById('report-date-to').value
 	});
 
+	const groupsTbody = document.getElementById('report-groups-tbody');
+
 	fetch('get_dynamic_report.php?' + params.toString())
 		.then(response => response.json())
 		.then(data => {
 			if (!data.success) {
+				if (groupsTbody) {
+					groupsTbody.innerHTML = '<tr><td colspan="4" class="analytics-empty-row">' + escHtml(data.message || 'Unable to load report.') + '</td></tr>';
+				}
 				return;
 			}
 
+			const dominant = data.summary.dominant_currency || 'IQD';
 			document.getElementById('report-summary-entries').textContent = Number(data.summary.entries_count || 0).toLocaleString();
 			document.getElementById('report-summary-groups').textContent = Number(data.summary.groups_count || 0).toLocaleString();
 			document.getElementById('report-summary-quantity').textContent = Number(data.summary.total_quantity || 0).toFixed(2);
-			document.getElementById('report-summary-value').textContent = formatCurrency(data.summary.total_value || 0);
+			document.getElementById('report-summary-value').textContent = formatMoneyByCurrency(data.summary.total_value_by_currency);
+			document.getElementById('report-chart-currency').textContent = (data.groups || []).length ? dominant : '';
 
-			renderReportChart(data.groups || []);
+			renderReportChart(data.groups || [], dominant);
 			renderGroupRows(data.groups || []);
 			renderDetailRows(data.details || []);
+		})
+		.catch(() => {
+			if (groupsTbody) {
+				groupsTbody.innerHTML = '<tr><td colspan="4" class="analytics-empty-row">Failed to load report. Please try again.</td></tr>';
+			}
 		});
 }
 
@@ -588,6 +670,7 @@ document.getElementById('report-run-btn').addEventListener('click', runDetailedR
 document.getElementById('report-reset-btn').addEventListener('click', function() {
 	document.getElementById('report-breakdown').value = 'category';
 	document.getElementById('report-work-type').value = '';
+	document.getElementById('report-status').value = '';
 	document.getElementById('report-building').value = '';
 	document.getElementById('report-date-from').value = '';
 	document.getElementById('report-date-to').value = '';

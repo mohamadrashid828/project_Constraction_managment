@@ -5,19 +5,13 @@ if (empty($_SESSION['user_id'])) {
     exit;
 }
 require_once '../config.php';
+require_once 'includes/permissions.php';
 
-$role_id = $_SESSION['role_id'];
-$permissions = [];
-$stmt = $conn->prepare('SELECT p.name FROM permissions p JOIN role_permissions rp ON p.id = rp.permission_id WHERE rp.role_id = ?');
-$stmt->bind_param('i', $role_id);
-$stmt->execute();
-$res = $stmt->get_result();
-while ($row = $res->fetch_assoc()) {
-    $permissions[] = $row['name'];
-}
-$stmt->close();
+// Derive permissions from the live role (join through users.id), so a role
+// change takes effect on the next request rather than after re-login.
+$permissions = get_user_permissions($conn, (int)$_SESSION['user_id']);
 
-if (!in_array('user_management', $permissions)) {
+if (!in_array('user_management', $permissions, true)) {
     header('Location: dashboard.php');
     exit;
 }
@@ -31,7 +25,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $full_name = trim($_POST['full_name']);
         $user_role_id = (int) $_POST['role_id'];
 
-        if ($username && $password && $email) {
+        if (!$username || !$password || !$email || !$user_role_id) {
+            $message = 'Please provide username, password, email, and select a role.';
+            $message_type = 'error';
+        } else {
             $hash = password_hash($password, PASSWORD_DEFAULT);
             $stmt = $conn->prepare('INSERT INTO users (username, password, email, full_name, role_id) VALUES (?, ?, ?, ?, ?)');
             $stmt->bind_param('ssssi', $username, $hash, $email, $full_name, $user_role_id);
@@ -143,8 +140,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$usersQuery = $conn->query('SELECT u.id, u.username, u.email, u.full_name, u.is_active, r.name AS role_name FROM users u JOIN roles r ON u.role_id = r.id ORDER BY u.id ASC');
-$rolesQuery = $conn->query('SELECT id, name FROM roles ORDER BY name ASC');
+$usersQuery = $conn->query('SELECT u.id, u.username, u.email, u.full_name, u.is_active, r.id AS role_id, r.name AS role_name FROM users u JOIN roles r ON u.role_id = r.id ORDER BY u.id ASC');
+
+$roles = [];
+$rolesResult = $conn->query('SELECT id, name, description FROM roles ORDER BY name ASC');
+while ($role = $rolesResult->fetch_assoc()) {
+    $roles[] = $role;
+}
+
+$permissionsList = [];
+$permissionsByModule = [];
+$permissionsResult = $conn->query("SELECT id, name, description, module, action_label FROM permissions ORDER BY COALESCE(module, name), COALESCE(action_label, name)");
+while ($perm = $permissionsResult->fetch_assoc()) {
+    $permissionsList[] = $perm;
+    $moduleKey = $perm['module'] ?: $perm['name'];
+    $permissionsByModule[$moduleKey][] = $perm;
+}
+
+$rolePermissions = [];
+$rolePermResult = $conn->query("SELECT rp.role_id, p.id AS permission_id, p.name AS permission_name, p.module, p.action_label
+    FROM role_permissions rp JOIN permissions p ON p.id = rp.permission_id");
+while ($rp = $rolePermResult->fetch_assoc()) {
+    // Nicer badge text: "Inventory: Approve" instead of the raw "inventory.approve".
+    $rp['display_label'] = $rp['module'] ? $rp['module'] . ': ' . ($rp['action_label'] ?: $rp['permission_name']) : $rp['permission_name'];
+    $rolePermissions[(int)$rp['role_id']][] = $rp;
+}
 
 // Handle edit mode
 $editMode = false;
@@ -231,12 +251,9 @@ require_once 'partials/sidebar.php';
                         <label style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;">Role</label>
                         <select name="role_id" required style="width: 100%; padding: 12px 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff; font-size: 0.95rem; transition: all 0.3s ease; cursor: pointer;" onmouseover="this.style.borderColor='rgba(96, 165, 250, 0.3)'" onmouseout="this.style.borderColor='rgba(255, 255, 255, 0.1)'">
                             <option value="" style="background: #0f172a; color: #fff;">Select a role</option>
-                            <?php
-                            $rolesQuery->data_seek(0);
-                            while ($role = $rolesQuery->fetch_assoc()):
-                            ?>
+                            <?php foreach ($roles as $role): ?>
                                 <option value="<?php echo $role['id']; ?>" style="background: #0f172a; color: #fff;" <?php echo $editMode && $editUser['role_id'] == $role['id'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($role['name']); ?></option>
-                            <?php endwhile; ?>
+                            <?php endforeach; ?>
                         </select>
                     </div>
 
@@ -256,12 +273,12 @@ require_once 'partials/sidebar.php';
             </div>
 
             <!-- Users Table -->
-            <div style="background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 32px; overflow-x: auto;">
+            <div style="background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 32px; overflow: hidden;">
                 <h2 style="color: #fff; margin-bottom: 24px; display: flex; align-items: center; gap: 10px;">
                     <i class="fas fa-list" style="color: #34d399;"></i> All Users
                 </h2>
-                
-                <table style="width: 100%; color: #cbd5e1; border-collapse: collapse;">
+                <div style="max-height: 520px; overflow-y: auto; overflow-x: auto; padding-right: 8px;">
+                    <table style="width: 100%; color: #cbd5e1; border-collapse: collapse;">
                     <thead>
                         <tr style="border-bottom: 2px solid rgba(255, 255, 255, 0.1);">
                             <th style="text-align: left; padding: 16px 12px; color: #94a3b8; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fas fa-hashtag"></i> ID</th>
@@ -292,7 +309,7 @@ require_once 'partials/sidebar.php';
                             <td style="padding: 16px 12px;">
                                 <div style="display: flex; gap: 6px; align-items: center;">
                                     <!-- Primary Edit Button -->
-                                    <button type="button" onclick="showEditModal(<?php echo $user['id']; ?>, '<?php echo htmlspecialchars($firstName); ?>', '<?php echo htmlspecialchars($lastName); ?>', '<?php echo htmlspecialchars($user['email']); ?>', '<?php echo htmlspecialchars($user['username']); ?>', <?php echo $user['role_id']; ?>)" style="padding: 8px 12px; background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; border-radius: 6px; font-size: 0.85rem; font-weight: 600; text-decoration: none; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px;">
+                                    <button type="button" onclick="showEditModal(<?php echo $user['id']; ?>, <?php echo htmlspecialchars(json_encode($firstName), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($lastName), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['email']), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['username']), ENT_QUOTES); ?>, <?php echo $user['role_id']; ?>)" style="padding: 8px 12px; background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; border-radius: 6px; font-size: 0.85rem; font-weight: 600; text-decoration: none; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px;">
                                         <i class="fas fa-edit"></i> Edit
                                     </button>
 
@@ -310,19 +327,19 @@ require_once 'partials/sidebar.php';
                                             </div>
 
                                             <!-- Role Update -->
-                                            <div class="menu-item" onclick="showRoleModal(<?php echo $user['id']; ?>, '<?php echo htmlspecialchars($user['username']); ?>', '<?php echo htmlspecialchars($user['role_name']); ?>')" style="padding: 10px 16px; color: #8b5cf6; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; transition: background 0.2s ease;" onmouseover="this.style.background='rgba(139, 92, 246, 0.1)'" onmouseout="this.style.background='transparent'">
+                                            <div class="menu-item" onclick="showRoleModal(<?php echo $user['id']; ?>, <?php echo htmlspecialchars(json_encode($user['username']), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['role_name']), ENT_QUOTES); ?>)" style="padding: 10px 16px; color: #8b5cf6; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; transition: background 0.2s ease;" onmouseover="this.style.background='rgba(139, 92, 246, 0.1)'" onmouseout="this.style.background='transparent'">
                                                 <i class="fas fa-user-tag"></i> Change Role
                                             </div>
 
                                             <!-- Password Reset -->
-                                            <div class="menu-item" onclick="showPasswordModal(<?php echo $user['id']; ?>, '<?php echo htmlspecialchars($user['username']); ?>')" style="padding: 10px 16px; color: #f59e0b; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; transition: background 0.2s ease;" onmouseover="this.style.background='rgba(245, 158, 11, 0.1)'" onmouseout="this.style.background='transparent'">
+                                            <div class="menu-item" onclick="showPasswordModal(<?php echo $user['id']; ?>, <?php echo htmlspecialchars(json_encode($user['username']), ENT_QUOTES); ?>)" style="padding: 10px 16px; color: #f59e0b; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; transition: background 0.2s ease;" onmouseover="this.style.background='rgba(245, 158, 11, 0.1)'" onmouseout="this.style.background='transparent'">
                                                 <i class="fas fa-key"></i> Reset Password
                                             </div>
 
                                             <?php if ($user['id'] != $_SESSION['user_id']): ?>
                                             <!-- Delete User -->
                                             <div style="border-top: 1px solid rgba(255, 255, 255, 0.1); margin: 4px 0;"></div>
-                                            <div class="menu-item" onclick="deleteUser(<?php echo $user['id']; ?>, '<?php echo htmlspecialchars($user['username']); ?>')" style="padding: 10px 16px; color: #dc2626; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; transition: background 0.2s ease;" onmouseover="this.style.background='rgba(220, 38, 38, 0.1)'" onmouseout="this.style.background='transparent'">
+                                            <div class="menu-item" onclick="deleteUser(<?php echo $user['id']; ?>, <?php echo htmlspecialchars(json_encode($user['username']), ENT_QUOTES); ?>)" style="padding: 10px 16px; color: #dc2626; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; transition: background 0.2s ease;" onmouseover="this.style.background='rgba(220, 38, 38, 0.1)'" onmouseout="this.style.background='transparent'">
                                                 <i class="fas fa-trash"></i> Delete User
                                             </div>
                                             <?php endif; ?>
@@ -334,6 +351,137 @@ require_once 'partials/sidebar.php';
                         <?php endwhile; ?>
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Role Management Panel -->
+            <div style="background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 32px; margin-top: 32px;">
+                <div style="display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 24px;">
+                    <h2 style="color: #fff; margin: 0; display: flex; align-items: center; gap: 10px;"><i class="fas fa-user-shield" style="color: #38bdf8;"></i> Roles & Permissions</h2>
+                    <p style="color: #cbd5e1; max-width: 680px; margin: 0;">Create custom user roles, assign page permissions, and control which top-level tabs each role can access.</p>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                    <div style="background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 24px;">
+                        <h3 style="color: #fff; margin-bottom: 18px;">Create New Role</h3>
+                        <form id="create-role-form">
+                            <div style="margin-bottom: 18px;">
+                                <label style="display:block;color:#cbd5e1;margin-bottom:8px;font-size:0.9rem;font-weight:500;">Role Name</label>
+                                <input type="text" name="name" required placeholder="e.g. Owner, Accountant" style="width:100%;padding:12px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:0.95rem;">
+                            </div>
+                            <div style="margin-bottom: 18px;">
+                                <label style="display:block;color:#cbd5e1;margin-bottom:8px;font-size:0.9rem;font-weight:500;">Description</label>
+                                <textarea name="description" rows="3" placeholder="Optional description" style="width:100%;padding:12px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:0.95rem;resize:vertical;"></textarea>
+                            </div>
+                            <div style="margin-bottom: 18px;">
+                                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;flex-wrap:wrap;">
+                                    <label style="display:block;color:#cbd5e1;font-size:0.9rem;font-weight:500;">Permissions</label>
+                                    <div style="display:flex;gap:8px;">
+                                        <button type="button" class="grant-all-permissions-btn" style="padding:6px 14px;background:rgba(34,197,94,0.14);color:#4ade80;border:1px solid rgba(34,197,94,0.35);border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:600;white-space:nowrap;"><i class="fas fa-check-double"></i> Grant Full Access</button>
+                                        <button type="button" class="clear-all-permissions-btn" style="padding:6px 14px;background:rgba(148,163,184,0.14);color:#cbd5e1;border:1px solid rgba(148,163,184,0.3);border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:600;white-space:nowrap;"><i class="fas fa-xmark"></i> Clear All</button>
+                                    </div>
+                                </div>
+                                <p style="color:#94a3b8;font-size:0.82rem;margin:0 0 12px;">Grant specific actions per module — e.g. a role can Approve requests without also being able to Issue Stock. Or click "Grant Full Access" for every permission at once.</p>
+                                <?php foreach ($permissionsByModule as $moduleName => $modulePerms): ?>
+                                    <div style="margin-bottom:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px 14px;">
+                                        <div style="color:#94a3b8;font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:10px;"><?php echo htmlspecialchars($moduleName); ?></div>
+                                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
+                                            <?php foreach ($modulePerms as $perm): ?>
+                                                <label style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.05);padding:10px 12px;border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#cbd5e1;font-size:0.9rem;cursor:pointer;">
+                                                    <input type="checkbox" name="permission_ids[]" value="<?php echo $perm['id']; ?>" style="accent:#60a5fa;">
+                                                    <span><?php echo htmlspecialchars($perm['action_label'] ?: $perm['name']); ?></span>
+                                                </label>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                            <button type="submit" style="padding:12px 24px;background:linear-gradient(135deg,#38bdf8,#0ea5e9);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;">Create Role</button>
+                        </form>
+                    </div>
+
+                    <div style="background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 24px;">
+                        <h3 style="color: #fff; margin-bottom: 18px;">Existing Roles</h3>
+                        <?php if (empty($roles)): ?>
+                            <p style="color: #94a3b8;">No roles created yet.</p>
+                        <?php else: ?>
+                            <div style="display: grid; gap: 16px;">
+                                <?php foreach ($roles as $role): ?>
+                                    <div data-role-id="<?php echo $role['id']; ?>" data-role-name="<?php echo htmlspecialchars($role['name'], ENT_QUOTES); ?>" data-role-description="<?php echo htmlspecialchars($role['description'], ENT_QUOTES); ?>" data-role-permissions="<?php echo implode(',', array_map(function($perm){ return $perm['permission_id']; }, $rolePermissions[$role['id']] ?? [])); ?>" style="background: rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:16px;">
+                                        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap: wrap;">
+                                            <div>
+                                                <h4 style="color:#fff; margin:0 0 4px; font-size:1rem;"><?php echo htmlspecialchars($role['name']); ?></h4>
+                                                <p style="color:#94a3b8; margin:0; font-size:0.9rem;"><?php echo htmlspecialchars($role['description'] ?: 'No description'); ?></p>
+                                            </div>
+                                            <div style="display:flex; gap:8px; flex-wrap: wrap;">
+                                                <button type="button" onclick="showRoleEditModal(<?php echo $role['id']; ?>)" style="padding:8px 12px;background:rgba(96,165,250,0.16);color:#60a5fa;border:1px solid rgba(96,165,250,0.3);border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:600;">Edit</button>
+                                                <button type="button" onclick="deleteRole(<?php echo $role['id']; ?>, <?php echo htmlspecialchars(json_encode($role['name']), ENT_QUOTES); ?>)" style="padding:8px 12px;background:rgba(239,68,68,0.12);color:#f87171;border:1px solid rgba(239,68,68,0.3);border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:600;">Delete</button>
+                                            </div>
+                                        </div>
+                                        <div style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px;">
+                                            <?php $assigned = $rolePermissions[$role['id']] ?? []; ?>
+                                            <?php if (empty($assigned)): ?>
+                                                <span style="color:#94a3b8;font-size:0.9rem;">No permissions assigned.</span>
+                                            <?php elseif (!empty($permissionsList) && count($assigned) === count($permissionsList)): ?>
+                                                <span style="background: rgba(34,197,94,0.16); color: #4ade80; padding: 6px 10px; border-radius: 9999px; font-size: 0.82rem; font-weight: 700;"><i class="fas fa-check-double"></i> Full Permission</span>
+                                            <?php else: ?>
+                                                <?php foreach ($assigned as $perm): ?>
+                                                    <span style="background: rgba(99,102,241,0.16); color: #c7d2fe; padding: 6px 10px; border-radius: 9999px; font-size: 0.82rem;"><?php echo htmlspecialchars($perm['display_label']); ?></span>
+                                                <?php endforeach; ?>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Role Edit Modal -->
+            <div id="role-edit-modal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 2000; align-items: center; justify-content: center;">
+                <div class="modal-content" style="background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 24px; max-width: 560px; width: 90%; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);">
+                    <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="color: #fff; margin: 0; font-size: 1.2rem;">Edit Role</h3>
+                        <button onclick="closeRoleEditModal()" style="background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; padding: 0;"><i class="fas fa-times"></i></button>
+                    </div>
+                    <form id="edit-role-form">
+                        <input type="hidden" name="role_id" id="edit_role_id_field">
+                        <div style="margin-bottom: 18px;">
+                            <label style="display:block;color:#cbd5e1;margin-bottom:8px;font-size:0.9rem;font-weight:500;">Role Name</label>
+                            <input type="text" name="name" id="edit_role_name" required style="width:100%;padding:12px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:0.95rem;">
+                        </div>
+                        <div style="margin-bottom: 18px;">
+                            <label style="display:block;color:#cbd5e1;margin-bottom:8px;font-size:0.9rem;font-weight:500;">Description</label>
+                            <textarea name="description" id="edit_role_description" rows="3" placeholder="Optional description" style="width:100%;padding:12px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:0.95rem;resize:vertical;"></textarea>
+                        </div>
+                        <div style="margin-bottom: 18px;">
+                            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;flex-wrap:wrap;">
+                                <label style="display:block;color:#cbd5e1;font-size:0.9rem;font-weight:500;">Permissions</label>
+                                <div style="display:flex;gap:8px;">
+                                    <button type="button" class="grant-all-permissions-btn" style="padding:6px 14px;background:rgba(34,197,94,0.14);color:#4ade80;border:1px solid rgba(34,197,94,0.35);border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:600;white-space:nowrap;"><i class="fas fa-check-double"></i> Grant Full Access</button>
+                                    <button type="button" class="clear-all-permissions-btn" style="padding:6px 14px;background:rgba(148,163,184,0.14);color:#cbd5e1;border:1px solid rgba(148,163,184,0.3);border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:600;white-space:nowrap;"><i class="fas fa-xmark"></i> Clear All</button>
+                                </div>
+                            </div>
+                            <?php foreach ($permissionsByModule as $moduleName => $modulePerms): ?>
+                                <div style="margin-bottom:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px 14px;">
+                                    <div style="color:#94a3b8;font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:10px;"><?php echo htmlspecialchars($moduleName); ?></div>
+                                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
+                                        <?php foreach ($modulePerms as $perm): ?>
+                                            <label style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.05);padding:10px 12px;border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:#cbd5e1;font-size:0.9rem;cursor:pointer;">
+                                                <input type="checkbox" name="permission_ids[]" value="<?php echo $perm['id']; ?>" class="edit-role-permission" style="accent:#60a5fa;">
+                                                <span><?php echo htmlspecialchars($perm['action_label'] ?: $perm['name']); ?></span>
+                                            </label>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <div style="display:flex;gap:12px;justify-content:flex-end;">
+                            <button type="button" onclick="closeRoleEditModal()" style="padding:10px 20px;background:rgba(255,255,255,0.1);color:#cbd5e1;border:1px solid rgba(255,255,255,0.2);border-radius:8px;cursor:pointer;">Cancel</button>
+                            <button type="submit" style="padding:10px 20px;background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Save Role</button>
+                        </div>
+                    </form>
+                </div>
             </div>
 
             <!-- Role Change Modal -->
@@ -352,12 +500,9 @@ require_once 'partials/sidebar.php';
                         <div style="margin-bottom: 24px;">
                             <label for="modal_role_id" style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;">New Role</label>
                             <select name="update_role_id" id="modal_role_id" required style="width: 100%; padding: 12px 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff; font-size: 0.95rem;">
-                                <?php
-                                $rolesQuery->data_seek(0);
-                                while ($role = $rolesQuery->fetch_assoc()):
-                                ?>
+                                <?php foreach ($roles as $role): ?>
                                     <option value="<?php echo $role['id']; ?>" style="background: #0f172a; color: #fff;"><?php echo htmlspecialchars($role['name']); ?></option>
-                                <?php endwhile; ?>
+                                <?php endforeach; ?>
                             </select>
                         </div>
                         <div style="display: flex; gap: 12px; justify-content: flex-end;">
@@ -422,12 +567,9 @@ require_once 'partials/sidebar.php';
                         <div style="margin-bottom: 24px;">
                             <label for="edit_role_id" style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;">Role</label>
                             <select name="edit_role_id" id="edit_role_id" required style="width: 100%; padding: 12px 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff; font-size: 0.95rem;">
-                                <?php
-                                $rolesQuery->data_seek(0);
-                                while ($role = $rolesQuery->fetch_assoc()):
-                                ?>
+                                <?php foreach ($roles as $role): ?>
                                     <option value="<?php echo $role['id']; ?>" style="background: #0f172a; color: #fff;"><?php echo htmlspecialchars($role['name']); ?></option>
-                                <?php endwhile; ?>
+                                <?php endforeach; ?>
                             </select>
                         </div>
                         <div style="display: flex; gap: 12px; justify-content: flex-end;">
@@ -470,9 +612,22 @@ require_once 'partials/sidebar.php';
         // ── AJAX helper ───────────────────────────────────────────────────
         async function ajaxPost(data) {
             const fd = new FormData();
-            for (const [k, v] of Object.entries(data)) fd.append(k, v);
-            const res = await fetch('users_ajax.php', { method: 'POST', body: fd });
-            return res.json();
+            for (const [k, v] of Object.entries(data)) {
+                if (Array.isArray(v)) {
+                    for (const item of v) {
+                        fd.append(k + '[]', item);
+                    }
+                } else {
+                    fd.append(k, v);
+                }
+            }
+            const res = await fetch('users_ajax.php', { method: 'POST', body: fd, credentials: 'same-origin' });
+            const text = await res.text();
+            try {
+                return text ? JSON.parse(text) : { success: false, message: 'Empty response from server.' };
+            } catch (err) {
+                return { success: false, message: text || 'Request failed.' };
+            }
         }
 
         // ── Refresh only the users table body ─────────────────────────────
@@ -510,11 +665,16 @@ require_once 'partials/sidebar.php';
             const origHtml = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-            const res = await ajaxPost(data);
-            showToast(res.message, res.success ? 'success' : 'error');
-            if (res.success) { this.reset(); await refreshUsersTable(); }
-            btn.disabled = false;
-            btn.innerHTML = origHtml;
+            try {
+                const res = await ajaxPost(data);
+                showToast(res.message, res.success ? 'success' : 'error');
+                if (res.success) { this.reset(); await refreshUsersTable(); }
+            } catch (err) {
+                showToast('Request failed. Please try again.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origHtml;
+            }
         });
 
         // ── Edit modal submit ─────────────────────────────────────────────
@@ -545,6 +705,66 @@ require_once 'partials/sidebar.php';
             const res = await ajaxPost(data);
             showToast(res.message, res.success ? 'success' : 'error');
             if (res.success) { closeRoleModal(); await refreshUsersTable(); }
+        });
+
+        // "Grant Full Access": one click checks every permission checkbox in
+        // that form (Create Role form or Edit Role modal), regardless of how
+        // many modules/tabs exist — no per-module wiring needed.
+        document.querySelectorAll('.grant-all-permissions-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const form = btn.closest('form');
+                if (!form) return;
+                form.querySelectorAll('input[name="permission_ids[]"]').forEach(function (cb) { cb.checked = true; });
+            });
+        });
+        document.querySelectorAll('.clear-all-permissions-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const form = btn.closest('form');
+                if (!form) return;
+                form.querySelectorAll('input[name="permission_ids[]"]').forEach(function (cb) { cb.checked = false; });
+            });
+        });
+
+        document.getElementById('create-role-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const form = this;
+            const permissions = Array.from(form.querySelectorAll('input[name="permission_ids[]"]:checked')).map(el => el.value);
+            const data = {
+                action: 'create_role',
+                name: form.name.value.trim(),
+                description: form.description.value.trim(),
+                permission_ids: permissions,
+            };
+            const btn = form.querySelector('button[type="submit"]');
+            const origHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+            const res = await ajaxPost(data);
+            showToast(res.message, res.success ? 'success' : 'error');
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+            if (res.success) {
+                window.location.reload();
+            }
+        });
+
+        document.getElementById('edit-role-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const form = this;
+            const permissions = Array.from(form.querySelectorAll('input[name="permission_ids[]"]:checked')).map(el => el.value);
+            const data = {
+                action: 'update_role_record',
+                role_id: form.role_id.value,
+                name: form.name.value.trim(),
+                description: form.description.value.trim(),
+                permission_ids: permissions,
+            };
+            const res = await ajaxPost(data);
+            showToast(res.message, res.success ? 'success' : 'error');
+            if (res.success) {
+                closeRoleEditModal();
+                window.location.reload();
+            }
         });
 
         // ── Password modal submit ─────────────────────────────────────────
@@ -586,6 +806,16 @@ require_once 'partials/sidebar.php';
             }
         }
 
+        async function deleteRole(roleId, roleName) {
+            if (!confirm('Delete role "' + roleName + '"? This will remove it for all users.')) return;
+            closeAllMenus();
+            const res = await ajaxPost({ action: 'delete_role', role_id: roleId });
+            showToast(res.message, res.success ? 'success' : 'error');
+            if (res.success) {
+                window.location.reload();
+            }
+        }
+
         // ── Menu helpers ──────────────────────────────────────────────────
         function closeAllMenus() {
             document.querySelectorAll('.actions-menu').forEach(m => m.style.display = 'none');
@@ -611,6 +841,25 @@ require_once 'partials/sidebar.php';
             document.getElementById('role-modal').style.display = 'none';
             document.getElementById('role-form').reset();
         }
+
+        function showRoleEditModal(roleId) {
+            const card = document.querySelector('[data-role-id="' + roleId + '"]');
+            if (!card) return;
+            document.getElementById('edit_role_id_field').value = roleId;
+            document.getElementById('edit_role_name').value = card.dataset.roleName || '';
+            document.getElementById('edit_role_description').value = card.dataset.roleDescription || '';
+            const permissionIds = (card.dataset.rolePermissions || '').split(',').filter(Boolean);
+            document.querySelectorAll('#role-edit-modal input.edit-role-permission').forEach(input => {
+                input.checked = permissionIds.includes(input.value);
+            });
+            document.getElementById('role-edit-modal').style.display = 'flex';
+            closeAllMenus();
+        }
+        function closeRoleEditModal() {
+            document.getElementById('role-edit-modal').style.display = 'none';
+            document.getElementById('edit-role-form').reset();
+        }
+
         function showPasswordModal(userId, username) {
             document.getElementById('password_user_id').value = userId;
             document.getElementById('password-username').textContent = username;
@@ -637,7 +886,7 @@ require_once 'partials/sidebar.php';
         }
 
         // Close modals on overlay click
-        ['role-modal', 'password-modal', 'edit-modal'].forEach(id => {
+        ['role-modal', 'role-edit-modal', 'password-modal', 'edit-modal'].forEach(id => {
             document.getElementById(id).addEventListener('click', function(e) {
                 if (e.target === this) this.style.display = 'none';
             });

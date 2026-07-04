@@ -1,6 +1,8 @@
 <?php
 session_start();
 require_once '../config.php';
+require_once 'includes/permissions.php';
+require_once 'includes/csrf.php';
 
 header('Content-Type: application/json');
 
@@ -11,6 +13,16 @@ if (!isset($_SESSION['user_id'])) {
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['success' => false, 'message' => 'Invalid request method']);
+    exit();
+}
+
+if (!verify_csrf_token($_POST['csrf_token'] ?? null)) {
+    echo json_encode(['success' => false, 'message' => 'Invalid CSRF token']);
+    exit();
+}
+
+if (!in_array('data_entry', get_user_permissions($conn, (int)$_SESSION['user_id']), true)) {
+    echo json_encode(['success' => false, 'message' => 'Access denied']);
     exit();
 }
 
@@ -71,7 +83,6 @@ $stakeholder_id = isset($_POST['stakeholder_id']) && $_POST['stakeholder_id'] !=
 $subpart_id = isset($_POST['subpart_id']) && $_POST['subpart_id'] !== '' ? (int)$_POST['subpart_id'] : null;
 $quantity = (float)($_POST['quantity'] ?? 0);
 $unit_price = (float)($_POST['unit_price'] ?? 0);
-$total_price = (float)($_POST['total_price'] ?? 0);
 $metric_type = trim($_POST['metric_type'] ?? 'unit');
 $currency_type = trim($_POST['currency_type'] ?? 'USD');
 $building_id = (int)($_POST['building_id'] ?? 0);
@@ -95,9 +106,9 @@ if ($currency_type === '') {
     $currency_type = 'USD';
 }
 
-if ($total_price <= 0 && $quantity > 0 && $unit_price >= 0) {
-    $total_price = $quantity * $unit_price;
-}
+// total_price is always derived server-side from the validated quantity and
+// unit_price; a client-supplied total is never trusted (financial integrity).
+$total_price = $quantity * $unit_price;
 
 if ($work_date === '' || $engineer_name === '' || $work_type_key === '' || $building_id <= 0 || $floor_id <= 0 || $apartment_id < 0) {
     echo json_encode(['success' => false, 'message' => 'Missing required fields']);

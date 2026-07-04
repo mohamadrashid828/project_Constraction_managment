@@ -4,6 +4,44 @@
 	gap: 18px;
 }
 
+/* ── Section headers: separate "Overview" from "Custom Report Builder" ──── */
+#analytics-page .analytics-section-head {
+	display: flex;
+	align-items: baseline;
+	gap: 14px;
+	flex-wrap: wrap;
+	padding-bottom: 4px;
+}
+
+#analytics-page .analytics-section-head h2 {
+	color: #fff;
+	font-size: 1.05rem;
+	display: flex;
+	align-items: center;
+	gap: 9px;
+	margin: 0;
+}
+
+#analytics-page .analytics-section-head h2 i {
+	color: #60a5fa;
+}
+
+#analytics-page .analytics-section-head p {
+	color: #64748b;
+	font-size: 0.85rem;
+	margin: 0;
+}
+
+#analytics-page .analytics-section-head-report {
+	margin-top: 10px;
+	padding-top: 22px;
+	border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+#analytics-page .analytics-section-head-report h2 i {
+	color: #a78bfa;
+}
+
 #analytics-page .analytics-kpis {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -41,6 +79,24 @@
 #analytics-page .analytics-kpi-card strong {
 	color: #fff;
 	font-size: 1.5rem;
+	line-height: 1.25;
+}
+
+#analytics-page .analytics-kpi-card strong.kpi-strong-sub {
+	font-size: 1rem;
+	color: #cbd5e1;
+	font-weight: 600;
+}
+
+#analytics-page .kpi-unit {
+	font-size: 0.95rem;
+	font-weight: 500;
+	color: #cbd5e1;
+}
+
+#analytics-page .kpi-sub {
+	color: #94a3b8;
+	font-size: 0.78rem;
 }
 
 #analytics-page .analytics-grid {
@@ -54,6 +110,13 @@
 	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+#analytics-page .analytics-card-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
 #analytics-page .analytics-card-head h2 {
 	margin: 0;
 	color: #fff;
@@ -61,6 +124,15 @@
 	display: flex;
 	align-items: center;
 	gap: 9px;
+}
+
+#analytics-page .analytics-card-note {
+	color: #64748b;
+	font-size: 0.76rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	white-space: nowrap;
 }
 
 #analytics-page .analytics-chart-wrap {
@@ -98,6 +170,24 @@
 	font-size: 0.86rem;
 }
 
+#analytics-page .analytics-table tbody tr:hover {
+	background: rgba(255, 255, 255, 0.03);
+}
+
+#analytics-page .analytics-status {
+	display: inline-block;
+	padding: 4px 11px;
+	border-radius: 9999px;
+	font-size: 0.74rem;
+	font-weight: 700;
+	white-space: nowrap;
+}
+
+#analytics-page .analytics-status-ok    { background: rgba(74, 222, 128, 0.15); color: #4ade80; }
+#analytics-page .analytics-status-warn  { background: rgba(251, 146, 60, 0.15); color: #fb923c; }
+#analytics-page .analytics-status-muted { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; }
+#analytics-page .analytics-status-bad   { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+
 #analytics-page .analytics-notes {
 	max-width: 240px;
 	white-space: nowrap;
@@ -112,6 +202,8 @@
 
 #analytics-page .analytics-report-card {
 	overflow: hidden;
+	background: rgba(124, 58, 237, 0.05);
+	border-color: rgba(167, 139, 250, 0.16);
 }
 
 #analytics-page .analytics-report-body {
