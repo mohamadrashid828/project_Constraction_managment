@@ -6,6 +6,7 @@ if (empty($_SESSION['user_id'])) {
 }
 require_once '../config.php';
 require_once 'includes/permissions.php';
+require_once 'includes/i18n.php';
 
 // Derive permissions from the live role (join through users.id), so a role
 // change takes effect on the next request rather than after re-login.
@@ -183,7 +184,7 @@ if (isset($_GET['edit']) && is_numeric($_GET['edit'])) {
 }
 ?>
 <?php
-$pageTitle = 'User Management - Construction Management';
+$pageTitle = t('user_management', 'User Management') . ' - ' . t('construction_management', 'Construction Management');
 $pageCss = 'users.css';
 $activePage = 'users';
 require_once 'partials/header.php';
@@ -196,9 +197,9 @@ require_once 'partials/sidebar.php';
         <!-- Main Content -->
         <main class="main-content">
             <header class="page-header">
-                <h1><i class="fas fa-users"></i> User Management</h1>
+                <h1><i class="fas fa-users"></i> <?php echo htmlspecialchars(t('user_management', 'User Management')); ?></h1>
                 <div class="user-info">
-                    <span>Welcome, <?php echo htmlspecialchars($_SESSION['username']); ?></span>
+                    <span><?php echo htmlspecialchars(t('welcome', 'Welcome')); ?>, <?php echo htmlspecialchars($_SESSION['username']); ?></span>
                 </div>
             </header>
 
@@ -212,12 +213,12 @@ require_once 'partials/sidebar.php';
             <?php endif; ?>
 
             <!-- User Form -->
-            <div style="background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 32px; margin-bottom: 32px;">
-                <h2 style="color: #fff; margin-bottom: 24px; display: flex; align-items: center; gap: 10px;">
-                    <i class="fas fa-<?php echo $editMode ? 'user-edit' : 'user-plus'; ?>" style="color: #60a5fa;"></i> <?php echo $editMode ? 'Edit User' : 'Create New User'; ?>
+            <div class="panel-shell">
+                <h2 class="panel-head">
+                    <span><i class="fas fa-<?php echo $editMode ? 'user-edit' : 'user-plus'; ?>"></i> <?php echo htmlspecialchars($editMode ? t('edit_user', 'Edit user') : t('create_new_user', 'Create new user')); ?></span>
                 </h2>
 
-                <form id="create-user-form" method="POST" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                <form id="create-user-form" class="user-form-grid" method="POST">
                     <?php if ($editMode): ?>
                         <input type="hidden" name="edit_user" value="1">
                         <input type="hidden" name="edit_user_id" value="<?php echo $editUser['id']; ?>">
@@ -225,47 +226,45 @@ require_once 'partials/sidebar.php';
                         <input type="hidden" name="create_user" value="1">
                     <?php endif; ?>
 
-                    <div>
-                        <label style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;">Username</label>
-                        <input type="text" name="username" required style="width: 100%; padding: 12px 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff; font-size: 0.95rem; transition: all 0.3s ease;" placeholder="Enter username" value="<?php echo $editMode ? htmlspecialchars($editUser['username']) : ''; ?>" onmouseover="this.style.borderColor='rgba(96, 165, 250, 0.3)'" onmouseout="this.style.borderColor='rgba(255, 255, 255, 0.1)'">
+                    <div class="form-field">
+                        <label><?php echo htmlspecialchars(t('username', 'Username')); ?></label>
+                        <input class="user-form-input" type="text" name="username" required placeholder="<?php echo htmlspecialchars(t('enter_username', 'Enter username')); ?>" value="<?php echo $editMode ? htmlspecialchars($editUser['username']) : ''; ?>">
                     </div>
 
                     <?php if (!$editMode): ?>
-                    <div>
-                        <label style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;">Password</label>
-                        <input type="password" name="password" required style="width: 100%; padding: 12px 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff; font-size: 0.95rem; transition: all 0.3s ease;" placeholder="Enter password" onmouseover="this.style.borderColor='rgba(96, 165, 250, 0.3)'" onmouseout="this.style.borderColor='rgba(255, 255, 255, 0.1)'">
+                    <div class="form-field">
+                        <label><?php echo htmlspecialchars(t('password', 'Password')); ?></label>
+                        <input class="user-form-input" type="password" name="password" required placeholder="<?php echo htmlspecialchars(t('enter_password', 'Enter password')); ?>">
                     </div>
                     <?php endif; ?>
 
-                    <div>
-                        <label style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;">Email</label>
-                        <input type="email" name="email" required style="width: 100%; padding: 12px 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff; font-size: 0.95rem; transition: all 0.3s ease;" placeholder="Enter email" value="<?php echo $editMode ? htmlspecialchars($editUser['email']) : ''; ?>" onmouseover="this.style.borderColor='rgba(96, 165, 250, 0.3)'" onmouseout="this.style.borderColor='rgba(255, 255, 255, 0.1)'">
+                    <div class="form-field">
+                        <label><?php echo htmlspecialchars(t('email', 'Email')); ?></label>
+                        <input class="user-form-input" type="email" name="email" required placeholder="<?php echo htmlspecialchars(t('enter_email', 'Enter email')); ?>" value="<?php echo $editMode ? htmlspecialchars($editUser['email']) : ''; ?>">
                     </div>
 
-                    <div>
-                        <label style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;">Full Name</label>
-                        <input type="text" name="full_name" style="width: 100%; padding: 12px 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff; font-size: 0.95rem; transition: all 0.3s ease;" placeholder="Enter full name" value="<?php echo $editMode ? htmlspecialchars($editUser['full_name']) : ''; ?>" onmouseover="this.style.borderColor='rgba(96, 165, 250, 0.3)'" onmouseout="this.style.borderColor='rgba(255, 255, 255, 0.1)'">
+                    <div class="form-field">
+                        <label><?php echo htmlspecialchars(t('full_name', 'Full name')); ?></label>
+                        <input class="user-form-input" type="text" name="full_name" placeholder="<?php echo htmlspecialchars(t('enter_full_name', 'Enter full name')); ?>" value="<?php echo $editMode ? htmlspecialchars($editUser['full_name']) : ''; ?>">
                     </div>
 
-                    <div>
-                        <label style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;">Role</label>
-                        <select name="role_id" required style="width: 100%; padding: 12px 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff; font-size: 0.95rem; transition: all 0.3s ease; cursor: pointer;" onmouseover="this.style.borderColor='rgba(96, 165, 250, 0.3)'" onmouseout="this.style.borderColor='rgba(255, 255, 255, 0.1)'">
-                            <option value="" style="background: #0f172a; color: #fff;">Select a role</option>
+                    <div class="form-field">
+                        <label><?php echo htmlspecialchars(t('role', 'Role')); ?></label>
+                        <select class="user-form-select" name="role_id" required>
+                            <option value=""><?php echo htmlspecialchars(t('select_role', 'Select a role')); ?></option>
                             <?php foreach ($roles as $role): ?>
-                                <option value="<?php echo $role['id']; ?>" style="background: #0f172a; color: #fff;" <?php echo $editMode && $editUser['role_id'] == $role['id'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($role['name']); ?></option>
+                                <option value="<?php echo $role['id']; ?>" <?php echo $editMode && $editUser['role_id'] == $role['id'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($role['name']); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
 
-                    <div></div>
-
-                    <div style="display: flex; gap: 12px; grid-column: 1 / -1;">
-                        <button type="submit" style="flex: 1; padding: 12px 28px; background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%); color: #fff; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(96, 165, 250, 0.3);">
-                            <i class="fas fa-<?php echo $editMode ? 'save' : 'plus'; ?>"></i> <?php echo $editMode ? 'Update User' : 'Create User'; ?>
+                    <div class="user-form-actions">
+                        <button type="submit" class="user-btn">
+                            <i class="fas fa-<?php echo $editMode ? 'save' : 'plus'; ?>"></i> <?php echo htmlspecialchars($editMode ? t('update_user', 'Update user') : t('create_user', 'Create user')); ?>
                         </button>
                         <?php if ($editMode): ?>
-                        <a href="users.php" style="padding: 12px 28px; background: rgba(255, 255, 255, 0.1); color: #cbd5e1; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; font-size: 0.95rem; font-weight: 600; text-decoration: none; transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 8px;">
-                            <i class="fas fa-times"></i> Cancel
+                        <a href="users.php" class="user-btn-secondary">
+                            <i class="fas fa-times"></i> <?php echo htmlspecialchars(t('cancel', 'Cancel')); ?>
                         </a>
                         <?php endif; ?>
                     </div>
@@ -273,20 +272,20 @@ require_once 'partials/sidebar.php';
             </div>
 
             <!-- Users Table -->
-            <div style="background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 32px; overflow: hidden;">
-                <h2 style="color: #fff; margin-bottom: 24px; display: flex; align-items: center; gap: 10px;">
-                    <i class="fas fa-list" style="color: #34d399;"></i> All Users
-                </h2>
-                <div style="max-height: 520px; overflow-y: auto; overflow-x: auto; padding-right: 8px;">
-                    <table style="width: 100%; color: #cbd5e1; border-collapse: collapse;">
+            <div class="panel-shell">
+                <div class="panel-head">
+                    <h2><i class="fas fa-list"></i> <?php echo htmlspecialchars(t('all_users', 'All users')); ?></h2>
+                </div>
+                <div class="users-table-wrap">
+                    <table class="users-table">
                     <thead>
-                        <tr style="border-bottom: 2px solid rgba(255, 255, 255, 0.1);">
-                            <th style="text-align: left; padding: 16px 12px; color: #94a3b8; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fas fa-hashtag"></i> ID</th>
-                            <th style="text-align: left; padding: 16px 12px; color: #94a3b8; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fas fa-user"></i> Username</th>
-                            <th style="text-align: left; padding: 16px 12px; color: #94a3b8; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fas fa-envelope"></i> Email</th>
-                            <th style="text-align: left; padding: 16px 12px; color: #94a3b8; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fas fa-shield-alt"></i> Role</th>
-                            <th style="text-align: left; padding: 16px 12px; color: #94a3b8; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fas fa-power-off"></i> Status</th>
-                            <th style="text-align: left; padding: 16px 12px; color: #94a3b8; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;"><i class="fas fa-cog"></i> Actions</th>
+                        <tr>
+                            <th><i class="fas fa-hashtag"></i> <?php echo htmlspecialchars(t('id', 'ID')); ?></th>
+                            <th><i class="fas fa-user"></i> <?php echo htmlspecialchars(t('username', 'Username')); ?></th>
+                            <th><i class="fas fa-envelope"></i> <?php echo htmlspecialchars(t('email', 'Email')); ?></th>
+                            <th><i class="fas fa-shield-alt"></i> <?php echo htmlspecialchars(t('role', 'Role')); ?></th>
+                            <th><i class="fas fa-power-off"></i> <?php echo htmlspecialchars(t('status', 'Status')); ?></th>
+                            <th><i class="fas fa-cog"></i> <?php echo htmlspecialchars(t('actions', 'Actions')); ?></th>
                         </tr>
                     </thead>
                     <tbody id="users-tbody">
@@ -296,51 +295,44 @@ require_once 'partials/sidebar.php';
                             $firstName = $nameParts[0] ?? '';
                             $lastName = $nameParts[1] ?? '';
                         ?>
-                        <tr id="user-row-<?php echo $user['id']; ?>" style="border-bottom: 1px solid rgba(255, 255, 255, 0.05); transition: all 0.3s ease;" onmouseover="this.style.backgroundColor='rgba(96, 165, 250, 0.08)'" onmouseout="this.style.backgroundColor='transparent'">
-                            <td style="padding: 16px 12px; color: #94a3b8;"><?php echo $user['id']; ?></td>
-                            <td style="padding: 16px 12px;"><span style="background: rgba(96, 165, 250, 0.2); padding: 4px 12px; border-radius: 6px; font-weight: 500; color: #60a5fa;"><?php echo htmlspecialchars($user['username']); ?></span></td>
-                            <td style="padding: 16px 12px; color: #cbd5e1;"><?php echo htmlspecialchars($user['email']); ?></td>
-                            <td style="padding: 16px 12px;"><span style="background: rgba(139, 92, 246, 0.2); padding: 4px 12px; border-radius: 6px; font-weight: 500; color: #c084fc;"><?php echo htmlspecialchars($user['role_name']); ?></span></td>
-                            <td style="padding: 16px 12px;">
-                                <span style="background: <?php echo $user['is_active'] ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'; ?>; color: <?php echo $user['is_active'] ? '#10b981' : '#ef4444'; ?>; padding: 4px 12px; border-radius: 6px; font-weight: 500; font-size: 0.9rem;">
-                                    <i class="fas fa-<?php echo $user['is_active'] ? 'check-circle' : 'times-circle'; ?>"></i> <?php echo $user['is_active'] ? 'Active' : 'Inactive'; ?>
+                        <tr id="user-row-<?php echo $user['id']; ?>">
+                            <td><?php echo $user['id']; ?></td>
+                            <td><span class="user-badge badge-user"><?php echo htmlspecialchars($user['username']); ?></span></td>
+                            <td><?php echo htmlspecialchars($user['email']); ?></td>
+                            <td><span class="user-badge badge-role"><?php echo htmlspecialchars($user['role_name']); ?></span></td>
+                            <td>
+                                <span class="user-badge <?php echo $user['is_active'] ? 'badge-status-active' : 'badge-status-inactive'; ?>">
+                                    <i class="fas fa-<?php echo $user['is_active'] ? 'check-circle' : 'times-circle'; ?>"></i> <?php echo $user['is_active'] ? t('active', 'Active') : t('inactive', 'Inactive'); ?>
                                 </span>
                             </td>
-                            <td style="padding: 16px 12px;">
-                                <div style="display: flex; gap: 6px; align-items: center;">
-                                    <!-- Primary Edit Button -->
-                                    <button type="button" onclick="showEditModal(<?php echo $user['id']; ?>, <?php echo htmlspecialchars(json_encode($firstName), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($lastName), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['email']), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['username']), ENT_QUOTES); ?>, <?php echo $user['role_id']; ?>)" style="padding: 8px 12px; background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; border-radius: 6px; font-size: 0.85rem; font-weight: 600; text-decoration: none; cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 6px;">
-                                        <i class="fas fa-edit"></i> Edit
+                            <td>
+                                <div class="user-action-wrap">
+                                    <button type="button" class="user-action-btn user-action-edit" onclick="showEditModal(<?php echo $user['id']; ?>, <?php echo htmlspecialchars(json_encode($firstName), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($lastName), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['email']), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['username']), ENT_QUOTES); ?>, <?php echo $user['role_id']; ?>)">
+                                        <i class="fas fa-edit"></i> <?php echo htmlspecialchars(t('edit', 'Edit')); ?>
                                     </button>
 
-                                    <!-- Quick Actions Dropdown -->
                                     <div style="position: relative; display: inline-block;">
-                                        <button type="button" class="action-btn" onclick="toggleActionsMenu(<?php echo $user['id']; ?>)" style="padding: 8px 10px; background: rgba(96, 165, 250, 0.2); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.3); border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease;">
+                                        <button type="button" class="user-action-menu-btn" onclick="toggleActionsMenu(<?php echo $user['id']; ?>)">
                                             <i class="fas fa-ellipsis-v"></i>
                                         </button>
 
-                                        <!-- Actions Menu -->
-                                        <div id="actions-menu-<?php echo $user['id']; ?>" class="actions-menu" style="display: none; position: absolute; right: 0; top: 100%; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 8px 0; min-width: 160px; z-index: 1000; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3); margin-top: 4px;">
-                                            <!-- Status Toggle -->
-                                            <div class="menu-item" onclick="toggleUserStatus(<?php echo $user['id']; ?>, '<?php echo $user['is_active'] ? 'active' : 'inactive'; ?>')" style="padding: 10px 16px; color: <?php echo $user['is_active'] ? '#ef4444' : '#10b981'; ?>; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; transition: background 0.2s ease;" onmouseover="this.style.background='<?php echo $user['is_active'] ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)'; ?>'" onmouseout="this.style.background='transparent'">
-                                                <i class="fas fa-<?php echo $user['is_active'] ? 'ban' : 'check'; ?>"></i> <?php echo $user['is_active'] ? 'Deactivate' : 'Activate'; ?>
+                                        <div id="actions-menu-<?php echo $user['id']; ?>" class="actions-menu" style="display: none;">
+                                            <div class="menu-item" onclick="toggleUserStatus(<?php echo $user['id']; ?>, '<?php echo $user['is_active'] ? 'active' : 'inactive'; ?>')">
+                                                <i class="fas fa-<?php echo $user['is_active'] ? 'ban' : 'check'; ?>"></i> <?php echo $user['is_active'] ? t('deactivate', 'Deactivate') : t('activate', 'Activate'); ?>
                                             </div>
 
-                                            <!-- Role Update -->
-                                            <div class="menu-item" onclick="showRoleModal(<?php echo $user['id']; ?>, <?php echo htmlspecialchars(json_encode($user['username']), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['role_name']), ENT_QUOTES); ?>)" style="padding: 10px 16px; color: #8b5cf6; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; transition: background 0.2s ease;" onmouseover="this.style.background='rgba(139, 92, 246, 0.1)'" onmouseout="this.style.background='transparent'">
-                                                <i class="fas fa-user-tag"></i> Change Role
+                                            <div class="menu-item" onclick="showRoleModal(<?php echo $user['id']; ?>, <?php echo htmlspecialchars(json_encode($user['username']), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($user['role_name']), ENT_QUOTES); ?>)">
+                                                <i class="fas fa-user-tag"></i> <?php echo htmlspecialchars(t('change_role', 'Change Role')); ?>
                                             </div>
 
-                                            <!-- Password Reset -->
-                                            <div class="menu-item" onclick="showPasswordModal(<?php echo $user['id']; ?>, <?php echo htmlspecialchars(json_encode($user['username']), ENT_QUOTES); ?>)" style="padding: 10px 16px; color: #f59e0b; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; transition: background 0.2s ease;" onmouseover="this.style.background='rgba(245, 158, 11, 0.1)'" onmouseout="this.style.background='transparent'">
-                                                <i class="fas fa-key"></i> Reset Password
+                                            <div class="menu-item" onclick="showPasswordModal(<?php echo $user['id']; ?>, <?php echo htmlspecialchars(json_encode($user['username']), ENT_QUOTES); ?>)">
+                                                <i class="fas fa-key"></i> <?php echo htmlspecialchars(t('reset_password', 'Reset Password')); ?>
                                             </div>
 
                                             <?php if ($user['id'] != $_SESSION['user_id']): ?>
-                                            <!-- Delete User -->
                                             <div style="border-top: 1px solid rgba(255, 255, 255, 0.1); margin: 4px 0;"></div>
-                                            <div class="menu-item" onclick="deleteUser(<?php echo $user['id']; ?>, <?php echo htmlspecialchars(json_encode($user['username']), ENT_QUOTES); ?>)" style="padding: 10px 16px; color: #dc2626; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; transition: background 0.2s ease;" onmouseover="this.style.background='rgba(220, 38, 38, 0.1)'" onmouseout="this.style.background='transparent'">
-                                                <i class="fas fa-trash"></i> Delete User
+                                            <div class="menu-item" onclick="deleteUser(<?php echo $user['id']; ?>, <?php echo htmlspecialchars(json_encode($user['username']), ENT_QUOTES); ?>)">
+                                                <i class="fas fa-trash"></i> <?php echo htmlspecialchars(t('delete_user', 'Delete User')); ?>
                                             </div>
                                             <?php endif; ?>
                                         </div>
@@ -356,31 +348,31 @@ require_once 'partials/sidebar.php';
             <!-- Role Management Panel -->
             <div style="background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 32px; margin-top: 32px;">
                 <div style="display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 24px;">
-                    <h2 style="color: #fff; margin: 0; display: flex; align-items: center; gap: 10px;"><i class="fas fa-user-shield" style="color: #38bdf8;"></i> Roles & Permissions</h2>
-                    <p style="color: #cbd5e1; max-width: 680px; margin: 0;">Create custom user roles, assign page permissions, and control which top-level tabs each role can access.</p>
+                    <h2 style="color: #fff; margin: 0; display: flex; align-items: center; gap: 10px;"><i class="fas fa-user-shield" style="color: #38bdf8;"></i> <?php echo htmlspecialchars(t('roles_permissions', 'Roles & Permissions')); ?></h2>
+                    <p style="color: #cbd5e1; max-width: 680px; margin: 0;"><?php echo htmlspecialchars(t('roles_permissions_description', 'Create custom user roles, assign page permissions, and control which top-level tabs each role can access.')); ?></p>
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
                     <div style="background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 24px;">
-                        <h3 style="color: #fff; margin-bottom: 18px;">Create New Role</h3>
+                        <h3 style="color: #fff; margin-bottom: 18px;"><?php echo htmlspecialchars(t('create_new_role', 'Create New Role')); ?></h3>
                         <form id="create-role-form">
                             <div style="margin-bottom: 18px;">
-                                <label style="display:block;color:#cbd5e1;margin-bottom:8px;font-size:0.9rem;font-weight:500;">Role Name</label>
-                                <input type="text" name="name" required placeholder="e.g. Owner, Accountant" style="width:100%;padding:12px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:0.95rem;">
+                                <label style="display:block;color:#cbd5e1;margin-bottom:8px;font-size:0.9rem;font-weight:500;"><?php echo htmlspecialchars(t('role_name', 'Role Name')); ?></label>
+                                <input type="text" name="name" required placeholder="<?php echo htmlspecialchars(t('role_name_example', 'e.g. Owner, Accountant')); ?>" style="width:100%;padding:12px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:0.95rem;">
                             </div>
                             <div style="margin-bottom: 18px;">
-                                <label style="display:block;color:#cbd5e1;margin-bottom:8px;font-size:0.9rem;font-weight:500;">Description</label>
-                                <textarea name="description" rows="3" placeholder="Optional description" style="width:100%;padding:12px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:0.95rem;resize:vertical;"></textarea>
+                                <label style="display:block;color:#cbd5e1;margin-bottom:8px;font-size:0.9rem;font-weight:500;"><?php echo htmlspecialchars(t('description', 'Description')); ?></label>
+                                <textarea name="description" rows="3" placeholder="<?php echo htmlspecialchars(t('optional_description', 'Optional description')); ?>" style="width:100%;padding:12px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:0.95rem;resize:vertical;"></textarea>
                             </div>
                             <div style="margin-bottom: 18px;">
                                 <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;flex-wrap:wrap;">
-                                    <label style="display:block;color:#cbd5e1;font-size:0.9rem;font-weight:500;">Permissions</label>
+                                    <label style="display:block;color:#cbd5e1;font-size:0.9rem;font-weight:500;"><?php echo htmlspecialchars(t('permissions', 'Permissions')); ?></label>
                                     <div style="display:flex;gap:8px;">
-                                        <button type="button" class="grant-all-permissions-btn" style="padding:6px 14px;background:rgba(34,197,94,0.14);color:#4ade80;border:1px solid rgba(34,197,94,0.35);border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:600;white-space:nowrap;"><i class="fas fa-check-double"></i> Grant Full Access</button>
-                                        <button type="button" class="clear-all-permissions-btn" style="padding:6px 14px;background:rgba(148,163,184,0.14);color:#cbd5e1;border:1px solid rgba(148,163,184,0.3);border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:600;white-space:nowrap;"><i class="fas fa-xmark"></i> Clear All</button>
+                                        <button type="button" class="grant-all-permissions-btn" style="padding:6px 14px;background:rgba(34,197,94,0.14);color:#4ade80;border:1px solid rgba(34,197,94,0.35);border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:600;white-space:nowrap;"><i class="fas fa-check-double"></i> <?php echo htmlspecialchars(t('grant_full_access', 'Grant Full Access')); ?></button>
+                                        <button type="button" class="clear-all-permissions-btn" style="padding:6px 14px;background:rgba(148,163,184,0.14);color:#cbd5e1;border:1px solid rgba(148,163,184,0.3);border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:600;white-space:nowrap;"><i class="fas fa-xmark"></i> <?php echo htmlspecialchars(t('clear_all', 'Clear All')); ?></button>
                                     </div>
                                 </div>
-                                <p style="color:#94a3b8;font-size:0.82rem;margin:0 0 12px;">Grant specific actions per module — e.g. a role can Approve requests without also being able to Issue Stock. Or click "Grant Full Access" for every permission at once.</p>
+                                <p style="color:#94a3b8;font-size:0.82rem;margin:0 0 12px;"><?php echo htmlspecialchars(t('role_permissions_hint', 'Grant specific actions per module — e.g. a role can Approve requests without also being able to Issue Stock. Or click "Grant Full Access" for every permission at once.')); ?></p>
                                 <?php foreach ($permissionsByModule as $moduleName => $modulePerms): ?>
                                     <div style="margin-bottom:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px 14px;">
                                         <div style="color:#94a3b8;font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:10px;"><?php echo htmlspecialchars($moduleName); ?></div>
@@ -395,14 +387,14 @@ require_once 'partials/sidebar.php';
                                     </div>
                                 <?php endforeach; ?>
                             </div>
-                            <button type="submit" style="padding:12px 24px;background:linear-gradient(135deg,#38bdf8,#0ea5e9);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;">Create Role</button>
+                            <button type="submit" style="padding:12px 24px;background:linear-gradient(135deg,#38bdf8,#0ea5e9);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;"><?php echo htmlspecialchars(t('create_role', 'Create Role')); ?></button>
                         </form>
                     </div>
 
                     <div style="background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; padding: 24px;">
-                        <h3 style="color: #fff; margin-bottom: 18px;">Existing Roles</h3>
+                        <h3 style="color: #fff; margin-bottom: 18px;"><?php echo htmlspecialchars(t('existing_roles', 'Existing Roles')); ?></h3>
                         <?php if (empty($roles)): ?>
-                            <p style="color: #94a3b8;">No roles created yet.</p>
+                            <p style="color: #94a3b8;"><?php echo htmlspecialchars(t('no_roles', 'No roles created yet.')); ?></p>
                         <?php else: ?>
                             <div style="display: grid; gap: 16px;">
                                 <?php foreach ($roles as $role): ?>
@@ -410,19 +402,19 @@ require_once 'partials/sidebar.php';
                                         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap: wrap;">
                                             <div>
                                                 <h4 style="color:#fff; margin:0 0 4px; font-size:1rem;"><?php echo htmlspecialchars($role['name']); ?></h4>
-                                                <p style="color:#94a3b8; margin:0; font-size:0.9rem;"><?php echo htmlspecialchars($role['description'] ?: 'No description'); ?></p>
+                                                <p style="color:#94a3b8; margin:0; font-size:0.9rem;"><?php echo htmlspecialchars($role['description'] ?: t('no_description', 'No description')); ?></p>
                                             </div>
                                             <div style="display:flex; gap:8px; flex-wrap: wrap;">
-                                                <button type="button" onclick="showRoleEditModal(<?php echo $role['id']; ?>)" style="padding:8px 12px;background:rgba(96,165,250,0.16);color:#60a5fa;border:1px solid rgba(96,165,250,0.3);border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:600;">Edit</button>
-                                                <button type="button" onclick="deleteRole(<?php echo $role['id']; ?>, <?php echo htmlspecialchars(json_encode($role['name']), ENT_QUOTES); ?>)" style="padding:8px 12px;background:rgba(239,68,68,0.12);color:#f87171;border:1px solid rgba(239,68,68,0.3);border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:600;">Delete</button>
+                                                <button type="button" onclick="showRoleEditModal(<?php echo $role['id']; ?>)" style="padding:8px 12px;background:rgba(96,165,250,0.16);color:#60a5fa;border:1px solid rgba(96,165,250,0.3);border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:600;"><?php echo htmlspecialchars(t('edit', 'Edit')); ?></button>
+                                                <button type="button" onclick="deleteRole(<?php echo $role['id']; ?>, <?php echo htmlspecialchars(json_encode($role['name']), ENT_QUOTES); ?>)" style="padding:8px 12px;background:rgba(239,68,68,0.12);color:#f87171;border:1px solid rgba(239,68,68,0.3);border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:600;"><?php echo htmlspecialchars(t('delete', 'Delete')); ?></button>
                                             </div>
                                         </div>
                                         <div style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px;">
                                             <?php $assigned = $rolePermissions[$role['id']] ?? []; ?>
                                             <?php if (empty($assigned)): ?>
-                                                <span style="color:#94a3b8;font-size:0.9rem;">No permissions assigned.</span>
+                                                <span style="color:#94a3b8;font-size:0.9rem;"><?php echo htmlspecialchars(t('no_permissions', 'No permissions assigned.')); ?></span>
                                             <?php elseif (!empty($permissionsList) && count($assigned) === count($permissionsList)): ?>
-                                                <span style="background: rgba(34,197,94,0.16); color: #4ade80; padding: 6px 10px; border-radius: 9999px; font-size: 0.82rem; font-weight: 700;"><i class="fas fa-check-double"></i> Full Permission</span>
+                                                <span style="background: rgba(34,197,94,0.16); color: #4ade80; padding: 6px 10px; border-radius: 9999px; font-size: 0.82rem; font-weight: 700;"><i class="fas fa-check-double"></i> <?php echo htmlspecialchars(t('full_permission', 'Full Permission')); ?></span>
                                             <?php else: ?>
                                                 <?php foreach ($assigned as $perm): ?>
                                                     <span style="background: rgba(99,102,241,0.16); color: #c7d2fe; padding: 6px 10px; border-radius: 9999px; font-size: 0.82rem;"><?php echo htmlspecialchars($perm['display_label']); ?></span>
@@ -441,25 +433,25 @@ require_once 'partials/sidebar.php';
             <div id="role-edit-modal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 2000; align-items: center; justify-content: center;">
                 <div class="modal-content" style="background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 24px; max-width: 560px; width: 90%; max-height: 85vh; overflow-y: auto; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);">
                     <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h3 style="color: #fff; margin: 0; font-size: 1.2rem;">Edit Role</h3>
+                        <h3 style="color: #fff; margin: 0; font-size: 1.2rem;"><?php echo htmlspecialchars(t('edit_role', 'Edit Role')); ?></h3>
                         <button onclick="closeRoleEditModal()" style="background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; padding: 0;"><i class="fas fa-times"></i></button>
                     </div>
                     <form id="edit-role-form">
                         <input type="hidden" name="role_id" id="edit_role_id_field">
                         <div style="margin-bottom: 18px;">
-                            <label style="display:block;color:#cbd5e1;margin-bottom:8px;font-size:0.9rem;font-weight:500;">Role Name</label>
+                            <label style="display:block;color:#cbd5e1;margin-bottom:8px;font-size:0.9rem;font-weight:500;"><?php echo htmlspecialchars(t('role_name', 'Role Name')); ?></label>
                             <input type="text" name="name" id="edit_role_name" required style="width:100%;padding:12px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:0.95rem;">
                         </div>
                         <div style="margin-bottom: 18px;">
-                            <label style="display:block;color:#cbd5e1;margin-bottom:8px;font-size:0.9rem;font-weight:500;">Description</label>
-                            <textarea name="description" id="edit_role_description" rows="3" placeholder="Optional description" style="width:100%;padding:12px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:0.95rem;resize:vertical;"></textarea>
+                            <label style="display:block;color:#cbd5e1;margin-bottom:8px;font-size:0.9rem;font-weight:500;"><?php echo htmlspecialchars(t('description', 'Description')); ?></label>
+                            <textarea name="description" id="edit_role_description" rows="3" placeholder="<?php echo htmlspecialchars(t('optional_description', 'Optional description')); ?>" style="width:100%;padding:12px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:0.95rem;resize:vertical;"></textarea>
                         </div>
                         <div style="margin-bottom: 18px;">
                             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;flex-wrap:wrap;">
-                                <label style="display:block;color:#cbd5e1;font-size:0.9rem;font-weight:500;">Permissions</label>
+                                <label style="display:block;color:#cbd5e1;font-size:0.9rem;font-weight:500;"><?php echo htmlspecialchars(t('permissions', 'Permissions')); ?></label>
                                 <div style="display:flex;gap:8px;">
-                                    <button type="button" class="grant-all-permissions-btn" style="padding:6px 14px;background:rgba(34,197,94,0.14);color:#4ade80;border:1px solid rgba(34,197,94,0.35);border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:600;white-space:nowrap;"><i class="fas fa-check-double"></i> Grant Full Access</button>
-                                    <button type="button" class="clear-all-permissions-btn" style="padding:6px 14px;background:rgba(148,163,184,0.14);color:#cbd5e1;border:1px solid rgba(148,163,184,0.3);border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:600;white-space:nowrap;"><i class="fas fa-xmark"></i> Clear All</button>
+                                    <button type="button" class="grant-all-permissions-btn" style="padding:6px 14px;background:rgba(34,197,94,0.14);color:#4ade80;border:1px solid rgba(34,197,94,0.35);border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:600;white-space:nowrap;"><i class="fas fa-check-double"></i> <?php echo htmlspecialchars(t('grant_full_access', 'Grant Full Access')); ?></button>
+                                    <button type="button" class="clear-all-permissions-btn" style="padding:6px 14px;background:rgba(148,163,184,0.14);color:#cbd5e1;border:1px solid rgba(148,163,184,0.3);border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:600;white-space:nowrap;"><i class="fas fa-xmark"></i> <?php echo htmlspecialchars(t('clear_all', 'Clear All')); ?></button>
                                 </div>
                             </div>
                             <?php foreach ($permissionsByModule as $moduleName => $modulePerms): ?>
@@ -477,8 +469,8 @@ require_once 'partials/sidebar.php';
                             <?php endforeach; ?>
                         </div>
                         <div style="display:flex;gap:12px;justify-content:flex-end;">
-                            <button type="button" onclick="closeRoleEditModal()" style="padding:10px 20px;background:rgba(255,255,255,0.1);color:#cbd5e1;border:1px solid rgba(255,255,255,0.2);border-radius:8px;cursor:pointer;">Cancel</button>
-                            <button type="submit" style="padding:10px 20px;background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Save Role</button>
+                            <button type="button" onclick="closeRoleEditModal()" style="padding:10px 20px;background:rgba(255,255,255,0.1);color:#cbd5e1;border:1px solid rgba(255,255,255,0.2);border-radius:8px;cursor:pointer;"><?php echo htmlspecialchars(t('cancel', 'Cancel')); ?></button>
+                            <button type="submit" style="padding:10px 20px;background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;"><?php echo htmlspecialchars(t('save_role', 'Save Role')); ?></button>
                         </div>
                     </form>
                 </div>
@@ -488,17 +480,17 @@ require_once 'partials/sidebar.php';
             <div id="role-modal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 2000; align-items: center; justify-content: center;">
                 <div class="modal-content" style="background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 24px; max-width: 400px; width: 90%; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);">
                     <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h3 style="color: #fff; margin: 0; font-size: 1.2rem;">Change User Role</h3>
+                        <h3 style="color: #fff; margin: 0; font-size: 1.2rem;"><?php echo htmlspecialchars(t('change_user_role', 'Change User Role')); ?></h3>
                         <button onclick="closeRoleModal()" style="background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; padding: 0;"><i class="fas fa-times"></i></button>
                     </div>
                     <form method="POST" id="role-form">
                         <input type="hidden" name="update_role_user_id" id="role_user_id">
                         <div style="margin-bottom: 20px;">
-                            <label style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;">User: <span id="role-username" style="color: #60a5fa;"></span></label>
-                            <label style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;">Current Role: <span id="role-current" style="color: #8b5cf6;"></span></label>
+                            <label style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;"><?php echo htmlspecialchars(t('user_label', 'User:')); ?> <span id="role-username" style="color: #60a5fa;"></span></label>
+                            <label style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;"><?php echo htmlspecialchars(t('current_role', 'Current role:')); ?> <span id="role-current" style="color: #8b5cf6;"></span></label>
                         </div>
                         <div style="margin-bottom: 24px;">
-                            <label for="modal_role_id" style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;">New Role</label>
+                            <label for="modal_role_id" style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;"><?php echo htmlspecialchars(t('new_role', 'New Role')); ?></label>
                             <select name="update_role_id" id="modal_role_id" required style="width: 100%; padding: 12px 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff; font-size: 0.95rem;">
                                 <?php foreach ($roles as $role): ?>
                                     <option value="<?php echo $role['id']; ?>" style="background: #0f172a; color: #fff;"><?php echo htmlspecialchars($role['name']); ?></option>
@@ -506,8 +498,8 @@ require_once 'partials/sidebar.php';
                             </select>
                         </div>
                         <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                            <button type="button" onclick="closeRoleModal()" style="padding: 10px 20px; background: rgba(255, 255, 255, 0.1); color: #cbd5e1; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; cursor: pointer;">Cancel</button>
-                            <button type="submit" name="update_role" style="padding: 10px 20px; background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Update Role</button>
+                            <button type="button" onclick="closeRoleModal()" style="padding: 10px 20px; background: rgba(255, 255, 255, 0.1); color: #cbd5e1; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; cursor: pointer;"><?php echo htmlspecialchars(t('cancel', 'Cancel')); ?></button>
+                            <button type="submit" name="update_role" style="padding: 10px 20px; background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;"><?php echo htmlspecialchars(t('update_role', 'Update Role')); ?></button>
                         </div>
                     </form>
                 </div>
@@ -517,21 +509,21 @@ require_once 'partials/sidebar.php';
             <div id="password-modal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 2000; align-items: center; justify-content: center;">
                 <div class="modal-content" style="background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 24px; max-width: 400px; width: 90%; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);">
                     <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h3 style="color: #fff; margin: 0; font-size: 1.2rem;">Reset User Password</h3>
+                        <h3 style="color: #fff; margin: 0; font-size: 1.2rem;"><?php echo htmlspecialchars(t('reset_user_password', 'Reset User Password')); ?></h3>
                         <button onclick="closePasswordModal()" style="background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; padding: 0;"><i class="fas fa-times"></i></button>
                     </div>
                     <form method="POST" id="password-form">
                         <input type="hidden" name="reset_user_id" id="password_user_id">
                         <div style="margin-bottom: 20px;">
-                            <p style="color: #cbd5e1; margin-bottom: 16px;">Enter a new password for <span id="password-username" style="color: #60a5fa; font-weight: 600;"></span></p>
+                            <p style="color: #cbd5e1; margin-bottom: 16px;"><?php echo htmlspecialchars(t('enter_new_password_for', 'Enter a new password for')); ?> <span id="password-username" style="color: #60a5fa; font-weight: 600;"></span></p>
                         </div>
                         <div style="margin-bottom: 24px;">
-                            <label for="new_password" style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;">New Password</label>
+                            <label for="new_password" style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;"><?php echo htmlspecialchars(t('new_password', 'New Password')); ?></label>
                             <input type="password" name="new_password" id="new_password" required style="width: 100%; padding: 12px 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff; font-size: 0.95rem;">
                         </div>
                         <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                            <button type="button" onclick="closePasswordModal()" style="padding: 10px 20px; background: rgba(255, 255, 255, 0.1); color: #cbd5e1; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; cursor: pointer;">Cancel</button>
-                            <button type="submit" name="reset_password" style="padding: 10px 20px; background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Reset Password</button>
+                            <button type="button" onclick="closePasswordModal()" style="padding: 10px 20px; background: rgba(255, 255, 255, 0.1); color: #cbd5e1; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; cursor: pointer;"><?php echo htmlspecialchars(t('cancel', 'Cancel')); ?></button>
+                            <button type="submit" name="reset_password" style="padding: 10px 20px; background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;"><?php echo htmlspecialchars(t('reset_password', 'Reset Password')); ?></button>
                         </div>
                     </form>
                 </div>
@@ -541,31 +533,31 @@ require_once 'partials/sidebar.php';
             <div id="edit-modal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 2000; align-items: center; justify-content: center;">
                 <div class="modal-content" style="background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 24px; max-width: 500px; width: 90%; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);">
                     <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h3 style="color: #fff; margin: 0; font-size: 1.2rem;">Edit User</h3>
+                        <h3 style="color: #fff; margin: 0; font-size: 1.2rem;"><?php echo htmlspecialchars(t('edit_user', 'Edit User')); ?></h3>
                         <button onclick="closeEditModal()" style="background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; padding: 0;"><i class="fas fa-times"></i></button>
                     </div>
                     <form method="POST" id="edit-form">
                         <input type="hidden" name="edit_user_id" id="edit_user_id">
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
                             <div>
-                                <label for="edit_first_name" style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;">First Name</label>
+                                <label for="edit_first_name" style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;"><?php echo htmlspecialchars(t('first_name', 'First Name')); ?></label>
                                 <input type="text" name="edit_first_name" id="edit_first_name" required style="width: 100%; padding: 12px 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff; font-size: 0.95rem;">
                             </div>
                             <div>
-                                <label for="edit_last_name" style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;">Last Name</label>
+                                <label for="edit_last_name" style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;"><?php echo htmlspecialchars(t('last_name', 'Last Name')); ?></label>
                                 <input type="text" name="edit_last_name" id="edit_last_name" required style="width: 100%; padding: 12px 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff; font-size: 0.95rem;">
                             </div>
                         </div>
                         <div style="margin-bottom: 20px;">
-                            <label for="edit_email" style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;">Email</label>
+                            <label for="edit_email" style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;"><?php echo htmlspecialchars(t('email', 'Email')); ?></label>
                             <input type="email" name="edit_email" id="edit_email" required style="width: 100%; padding: 12px 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff; font-size: 0.95rem;">
                         </div>
                         <div style="margin-bottom: 20px;">
-                            <label for="edit_username" style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;">Username</label>
+                            <label for="edit_username" style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;"><?php echo htmlspecialchars(t('username', 'Username')); ?></label>
                             <input type="text" name="edit_username" id="edit_username" required style="width: 100%; padding: 12px 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff; font-size: 0.95rem;">
                         </div>
                         <div style="margin-bottom: 24px;">
-                            <label for="edit_role_id" style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;">Role</label>
+                            <label for="edit_role_id" style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;"><?php echo htmlspecialchars(t('role', 'Role')); ?></label>
                             <select name="edit_role_id" id="edit_role_id" required style="width: 100%; padding: 12px 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff; font-size: 0.95rem;">
                                 <?php foreach ($roles as $role): ?>
                                     <option value="<?php echo $role['id']; ?>" style="background: #0f172a; color: #fff;"><?php echo htmlspecialchars($role['name']); ?></option>
@@ -573,8 +565,8 @@ require_once 'partials/sidebar.php';
                             </select>
                         </div>
                         <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                            <button type="button" onclick="closeEditModal()" style="padding: 10px 20px; background: rgba(255, 255, 255, 0.1); color: #cbd5e1; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; cursor: pointer;">Cancel</button>
-                            <button type="submit" name="edit_user" style="padding: 10px 20px; background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Update User</button>
+                            <button type="button" onclick="closeEditModal()" style="padding: 10px 20px; background: rgba(255, 255, 255, 0.1); color: #cbd5e1; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; cursor: pointer;"><?php echo htmlspecialchars(t('cancel', 'Cancel')); ?></button>
+                            <button type="submit" name="edit_user" style="padding: 10px 20px; background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;"><?php echo htmlspecialchars(t('update_user', 'Update User')); ?></button>
                         </div>
                     </form>
                 </div>
@@ -585,6 +577,14 @@ require_once 'partials/sidebar.php';
     </div>
 
     <script>
+        const tr = (key, fallback, replacements = {}) => {
+            let text = (window.appTranslations && window.appTranslations[key]) || fallback || key;
+            Object.entries(replacements).forEach(([token, value]) => {
+                text = text.split(token).join(String(value));
+            });
+            return text;
+        };
+
         // ── Toast notification ────────────────────────────────────────────
         function showToast(message, type = 'success') {
             const toast = document.createElement('div');
@@ -637,6 +637,7 @@ require_once 'partials/sidebar.php';
             try {
                 const res = await fetch('get_users_table.php');
                 tbody.innerHTML = await res.text();
+                window.translateStaticUi?.(tbody);
             } finally {
                 tbody.style.opacity = '1';
             }
@@ -664,13 +665,13 @@ require_once 'partials/sidebar.php';
             const btn = this.querySelector('button[type="submit"]');
             const origHtml = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + tr('saving', 'Saving...');
             try {
                 const res = await ajaxPost(data);
                 showToast(res.message, res.success ? 'success' : 'error');
                 if (res.success) { this.reset(); await refreshUsersTable(); }
             } catch (err) {
-                showToast('Request failed. Please try again.', 'error');
+                showToast(tr('request_failed', 'Request failed. Please try again.'), 'error');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = origHtml;
@@ -738,7 +739,7 @@ require_once 'partials/sidebar.php';
             const btn = form.querySelector('button[type="submit"]');
             const origHtml = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + tr('creating', 'Creating...');
             const res = await ajaxPost(data);
             showToast(res.message, res.success ? 'success' : 'error');
             btn.disabled = false;
@@ -782,8 +783,8 @@ require_once 'partials/sidebar.php';
 
         // ── Toggle status (AJAX — no reload) ──────────────────────────────
         async function toggleUserStatus(userId, currentStatus) {
-            const label = currentStatus === 'active' ? 'deactivate' : 'activate';
-            if (!confirm('Are you sure you want to ' + label + ' this user?')) return;
+            const label = currentStatus === 'active' ? tr('deactivate', 'deactivate') : tr('activate', 'activate');
+            if (!confirm(tr('toggle_user_confirm', 'Are you sure you want to {action} this user?', { '{action}': label }))) return;
             closeAllMenus();
             const res = await ajaxPost({ action: 'toggle_status', user_id: userId });
             showToast(res.message, res.success ? 'success' : 'error');
@@ -792,7 +793,7 @@ require_once 'partials/sidebar.php';
 
         // ── Delete user (AJAX — fades row out, no reload) ─────────────────
         async function deleteUser(userId, username) {
-            if (!confirm('Delete user "' + username + '"? This cannot be undone.')) return;
+            if (!confirm(tr('delete_user_confirm', 'Delete user "{username}"? This cannot be undone.', { '{username}': username }))) return;
             closeAllMenus();
             const res = await ajaxPost({ action: 'delete_user', user_id: userId });
             showToast(res.message, res.success ? 'success' : 'error');
@@ -807,7 +808,7 @@ require_once 'partials/sidebar.php';
         }
 
         async function deleteRole(roleId, roleName) {
-            if (!confirm('Delete role "' + roleName + '"? This will remove it for all users.')) return;
+            if (!confirm(tr('delete_role_confirm', 'Delete role "{name}"? This will remove it for all users.', { '{name}': roleName }))) return;
             closeAllMenus();
             const res = await ajaxPost({ action: 'delete_role', role_id: roleId });
             showToast(res.message, res.success ? 'success' : 'error');

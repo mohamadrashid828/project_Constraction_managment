@@ -73,6 +73,14 @@ if (!in_array($new_status, $valid_statuses, true)) {
 
 // ── Gechkari (measurements table) ────────────────────────────────────────
 if ($source === 'gechkari') {
+    // Legacy schema had status ENUM('draft','approved','rejected'); under
+    // STRICT_TRANS_TABLES writing 'accepted'/'medium' into it fails the whole
+    // UPDATE. Widen it once so every status the app uses is storable.
+    $statusCol = $conn->query("SHOW COLUMNS FROM measurements LIKE 'status'");
+    if ($statusCol && ($col = $statusCol->fetch_assoc()) && stripos((string)$col['Type'], "'medium'") === false) {
+        $conn->query("ALTER TABLE measurements MODIFY status ENUM('draft','medium','accepted','approved','rejected') NOT NULL DEFAULT 'draft'");
+    }
+
     $stmt = $conn->prepare("SELECT id, status FROM measurements WHERE id = ? LIMIT 1");
     $stmt->bind_param('i', $entry_id);
     $stmt->execute();
@@ -87,8 +95,14 @@ if ($source === 'gechkari') {
     $old_status = (string)$row['status'];
     $upd = $conn->prepare("UPDATE measurements SET status = ? WHERE id = ?");
     $upd->bind_param('si', $new_status, $entry_id);
-    $upd->execute();
+    $ok = $upd->execute();
+    $updError = $upd->error;
     $upd->close();
+
+    if (!$ok) {
+        echo json_encode(['success' => false, 'message' => 'Failed to change status: ' . $updError]);
+        exit;
+    }
 
     echo json_encode([
         'success'    => true,
@@ -127,8 +141,14 @@ $upd = $conn->prepare("UPDATE project_work_entries
     SET status = ?, previous_status = ?, status_changed_by = ?, status_changed_at = ?
     WHERE id = ?");
 $upd->bind_param('ssisi', $new_status, $old_status, $user_id, $now, $entry_id);
-$upd->execute();
+$ok = $upd->execute();
+$updError = $upd->error;
 $upd->close();
+
+if (!$ok) {
+    echo json_encode(['success' => false, 'message' => 'Failed to change status: ' . $updError]);
+    exit;
+}
 
 echo json_encode([
     'success'    => true,

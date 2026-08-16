@@ -84,7 +84,12 @@ function stakeholder_portal_url(string $token): string
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
     $base = rtrim(dirname($_SERVER['SCRIPT_NAME'] ?? '/project_1/src'), '/\\');
-    return $scheme . '://' . $host . $base . '/stakeholder_portal.php?token=' . urlencode($token);
+    $lang = $_SESSION['language'] ?? 'en';
+    $url = $scheme . '://' . $host . $base . '/stakeholder_portal.php?token=' . urlencode($token);
+    if (isset($_SESSION['language']) || array_key_exists('language', $_SESSION)) {
+        $url .= '&lang=' . rawurlencode($lang);
+    }
+    return $url;
 }
 
 function stakeholder_contract_url(string $token): string
@@ -92,7 +97,12 @@ function stakeholder_contract_url(string $token): string
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
     $base = rtrim(dirname($_SERVER['SCRIPT_NAME'] ?? '/project_1/src'), '/\\');
-    return $scheme . '://' . $host . $base . '/stakeholder_contract.php?token=' . urlencode($token);
+    $lang = $_SESSION['language'] ?? 'en';
+    $url = $scheme . '://' . $host . $base . '/stakeholder_contract.php?token=' . urlencode($token);
+    if (isset($_SESSION['language']) || array_key_exists('language', $_SESSION)) {
+        $url .= '&lang=' . rawurlencode($lang);
+    }
+    return $url;
 }
 
 function portal_status_label(string $status): string

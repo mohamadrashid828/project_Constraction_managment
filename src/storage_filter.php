@@ -1,18 +1,19 @@
 <?php
 session_start();
 require_once '../config.php';
+require_once 'includes/i18n.php';
 require_once 'includes/permissions.php';
 require_once 'includes/inventory.php';
 
 if (empty($_SESSION['user_id'])) {
     header('Content-Type: text/html; charset=utf-8');
-    echo '<tr><td class="stg-empty">Not authenticated</td></tr>';
+    echo '<tr><td class="stg-empty">' . htmlspecialchars(t('not_authenticated', 'Not authenticated')) . '</td></tr>';
     exit;
 }
 $userPermissions = get_user_permissions($conn, (int) $_SESSION['user_id']);
 if (!in_array('inventory.view', $userPermissions, true)) {
     header('Content-Type: text/html; charset=utf-8');
-    echo '<tr><td class="stg-empty">Access denied</td></tr>';
+    echo '<tr><td class="stg-empty">' . htmlspecialchars(t('access_denied', 'Access denied')) . '</td></tr>';
     exit;
 }
 
@@ -68,7 +69,7 @@ switch ($section) {
             $rows[] = $it;
         }
         if (!$rows) {
-            echo '<tr><td colspan="5" class="stg-empty">No items match these filters.</td></tr>';
+            echo '<tr><td colspan="5" class="stg-empty">' . htmlspecialchars(t('no_items_match_filters', 'No items match these filters.')) . '</td></tr>';
             exit;
         }
         foreach ($rows as $it) {
@@ -78,7 +79,7 @@ switch ($section) {
             echo '<tr>';
             echo '<td class="stg-strong">' . esc($it['item_name']) . '</td>';
             echo '<td>' . esc($it['unit']) . '</td>';
-            echo '<td class="num"><span class="stg-qty stg-qty-' . $status . '">' . qty_fmt($bal) . '</span>' . ($status !== 'ok' ? ' <span class="stg-stock-badge stg-stock-badge-' . $status . '">' . ($status === 'out' ? 'Out of Stock' : 'Low') . '</span>' : '') . '</td>';
+            echo '<td class="num"><span class="stg-qty stg-qty-' . $status . '">' . qty_fmt($bal) . '</span>' . ($status !== 'ok' ? ' <span class="stg-stock-badge stg-stock-badge-' . $status . '">' . ($status === 'out' ? t('out_of_stock_label', 'Out of Stock') : t('low_stock_label', 'Low Stock')) . '</span>' : '') . '</td>';
             echo '<td class="num">' . money($it['avg_price']) . '</td>';
             echo '<td class="num">' . money($val) . '</td>';
             echo '</tr>';
@@ -106,7 +107,7 @@ switch ($section) {
                 LIMIT 200";
         $res = inventory_run_dynamic($conn, $sql, $types, $params);
         if (!$res || $res->num_rows === 0) {
-            echo '<tr><td colspan="9" class="stg-empty">No purchases match these filters.</td></tr>';
+            echo '<tr><td colspan="9" class="stg-empty">' . htmlspecialchars(t('no_purchases_match_filters', 'No purchases match these filters.')) . '</td></tr>';
             exit;
         }
         while ($p = $res->fetch_assoc()) {
@@ -120,7 +121,7 @@ switch ($section) {
             echo '<td>' . ($p['ordered_by_name'] ? esc($p['ordered_by_name']) : '<span class="loc-none">—</span>') . '</td>';
             echo '<td>' . ($p['invoice_no'] ? esc($p['invoice_no']) : '<span class="loc-none">—</span>') . '</td>';
             echo '<td>' . (!empty($p['invoice_file'])
-                ? '<a class="stg-icon-btn stg-view-invoice" href="storage_invoice.php?id=' . (int) $p['id'] . '" target="_blank" title="View invoice"><i class="fas fa-file-pdf"></i></a>'
+                ? '<a class="stg-icon-btn stg-view-invoice" href="storage_invoice.php?id=' . (int) $p['id'] . '" target="_blank" title="' . htmlspecialchars(t('view_invoice', 'View invoice')) . '"><i class="fas fa-file-pdf"></i></a>'
                 : '<span class="loc-none">—</span>') . '</td>';
             echo '</tr>';
         }
@@ -150,7 +151,7 @@ switch ($section) {
                 LIMIT 200";
         $res = inventory_run_dynamic($conn, $sql, $types, $params);
         if (!$res || $res->num_rows === 0) {
-            echo '<tr><td colspan="6" class="stg-empty">No stock-out entries match these filters.</td></tr>';
+            echo '<tr><td colspan="6" class="stg-empty">' . htmlspecialchars(t('no_stock_out_entries', 'No stock-out entries match these filters.')) . '</td></tr>';
             exit;
         }
         while ($mv = $res->fetch_assoc()) {
@@ -193,7 +194,7 @@ switch ($section) {
                 LIMIT 200";
         $res = inventory_run_dynamic($conn, $sql, $types, $params);
         if (!$res || $res->num_rows === 0) {
-            echo '<tr><td colspan="7" class="stg-empty">No requests match these filters.</td></tr>';
+            echo '<tr><td colspan="7" class="stg-empty">' . htmlspecialchars(t('no_requests_match_filters', 'No requests match these filters.')) . '</td></tr>';
             exit;
         }
         while ($rq = $res->fetch_assoc()) {
@@ -208,16 +209,16 @@ switch ($section) {
             echo '<td>';
             if ($st === 'pending') {
                 if (in_array('inventory.approve', $userPermissions, true)) {
-                    echo '<button class="stg-icon-btn stg-approve" data-req="' . (int) $rq['id'] . '" title="Approve"><i class="fas fa-check"></i></button>';
+                    echo '<button class="stg-icon-btn stg-approve" data-req="' . (int) $rq['id'] . '" title="' . htmlspecialchars(t('approve', 'Approve')) . '"><i class="fas fa-check"></i></button>';
                 }
                 if (in_array('inventory.reject', $userPermissions, true)) {
-                    echo '<button class="stg-icon-btn stg-reject" data-req="' . (int) $rq['id'] . '" title="Reject"><i class="fas fa-times"></i></button>';
+                    echo '<button class="stg-icon-btn stg-reject" data-req="' . (int) $rq['id'] . '" title="' . htmlspecialchars(t('reject', 'Reject')) . '"><i class="fas fa-times"></i></button>';
                 }
                 if (!in_array('inventory.approve', $userPermissions, true) && !in_array('inventory.reject', $userPermissions, true)) {
                     echo '<span class="loc-none">—</span>';
                 }
             } elseif ($st === 'approved' && in_array('inventory.mark_delivered', $userPermissions, true)) {
-                echo '<button class="stg-icon-btn stg-delivered" data-req="' . (int) $rq['id'] . '" title="Mark as delivered to storage"><i class="fas fa-truck-ramp-box"></i> Delivered</button>';
+                echo '<button class="stg-icon-btn stg-delivered" data-req="' . (int) $rq['id'] . '" title="' . htmlspecialchars(t('mark_as_delivered', 'Mark as delivered to storage')) . '"><i class="fas fa-truck-ramp-box"></i> ' . htmlspecialchars(t('delivered', 'Delivered')) . '</button>';
             } else {
                 echo '<span class="loc-none">—</span>';
             }

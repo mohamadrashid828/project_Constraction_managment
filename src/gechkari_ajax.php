@@ -74,6 +74,14 @@ $chk->close();
 $total_price = $quantity * $unit_price;
 $work_type_id = WORK_TYPE_GECHKARI;
 
+// Legacy schema had status ENUM('draft','approved','rejected'); under
+// STRICT_TRANS_TABLES inserting 'accepted'/'medium' into it fails the whole
+// INSERT. Widen it once so every status the app uses is storable.
+$statusCol = $conn->query("SHOW COLUMNS FROM measurements LIKE 'status'");
+if ($statusCol && ($col = $statusCol->fetch_assoc()) && stripos((string)$col['Type'], "'medium'") === false) {
+    $conn->query("ALTER TABLE measurements MODIFY status ENUM('draft','medium','accepted','approved','rejected') NOT NULL DEFAULT 'draft'");
+}
+
 $stmt = $conn->prepare("
     INSERT INTO measurements
         (work_type_id, building_id, floor_id, apartment_id, quantity, unit_price, total_price,

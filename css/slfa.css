@@ -21,6 +21,52 @@
     padding: 0 4px;
 }
 
+html[dir="rtl"] .slfa-wrapper,
+html[dir="rtl"] .slfa-layout {
+    direction: rtl;
+}
+
+html[dir="rtl"] .slfa-search-icon {
+    left: auto;
+    right: 10px;
+}
+
+html[dir="rtl"] .slfa-search-input {
+    padding-left: 10px;
+    padding-right: 30px;
+}
+
+html[dir="rtl"] .language-switcher {
+    right: auto !important;
+    left: 16px;
+}
+
+html[dir="rtl"] .slfa-stakeholder-card.has-pending {
+    border-left: 1px solid rgba(255, 255, 255, 0.07);
+    border-right: 3px solid #f59e0b;
+}
+
+html[dir="rtl"] .slfa-toast {
+    right: auto;
+    left: 28px;
+}
+
+html[dir="rtl"] .modal-eng-cell i {
+    margin-right: 0 !important;
+    margin-left: 5px !important;
+}
+
+html[dir="rtl"] .slfa-table th,
+html[dir="rtl"] .slfa-table td {
+    text-align: right;
+}
+
+html[dir="rtl"] .slfa-table .col-check,
+html[dir="rtl"] .slfa-table .col-num,
+html[dir="rtl"] .slfa-table .col-center {
+    text-align: center;
+}
+
 /* ── Two-panel layout ───────────────────────────────────────────── */
 .slfa-layout {
     display: grid;
@@ -149,15 +195,15 @@
 }
 
 .slfa-stakeholder-card:hover {
-    background: rgba(99, 102, 241, 0.1);
-    border-color: rgba(99, 102, 241, 0.3);
+    background: rgba(59, 130, 246, 0.08);
+    border-color: rgba(96, 165, 250, 0.35);
     transform: translateX(3px);
 }
 
 .slfa-stakeholder-card.active {
-    background: rgba(99, 102, 241, 0.15);
-    border-color: rgba(99, 102, 241, 0.5);
-    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+    background: rgba(59, 130, 246, 0.12);
+    border-color: rgba(96, 165, 250, 0.48);
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.12);
 }
 
 .slfa-stakeholder-card.has-pending {
@@ -281,6 +327,12 @@
     min-height: 400px;
 }
 
+.slfa-detail-view {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
 /* ── Empty state ─────────────────────────────────────────────────── */
 .slfa-empty-state {
     background: rgba(255, 255, 255, 0.03);
@@ -312,25 +364,27 @@
 
 /* ── Section cards ───────────────────────────────────────────────── */
 .slfa-section-card {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.88), rgba(15, 23, 42, 0.72));
+    border: 1px solid rgba(148, 163, 184, 0.14);
     border-radius: 14px;
-    margin-bottom: 20px;
+    margin-bottom: 0;
     overflow: hidden;
+    box-shadow: 0 12px 28px rgba(2, 6, 23, 0.18);
 }
 
 /* ── Detail head ─────────────────────────────────────────────────── */
 .slfa-detail-head {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.08));
-    border: 1px solid rgba(99, 102, 241, 0.2);
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.85));
+    border: 1px solid rgba(96, 165, 250, 0.24);
     border-radius: 14px;
-    padding: 20px 24px;
+    padding: 22px 24px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 16px;
-    margin-bottom: 14px;
+    margin-bottom: 0;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.15);
 }
 
 .dhead-identity {
@@ -425,18 +479,19 @@
 
 .pay-set-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
 }
 
 .pay-set-item {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.52), rgba(15, 23, 42, 0.3));
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    border-radius: 12px;
     padding: 14px 16px;
     display: flex;
     align-items: center;
     gap: 12px;
+    min-height: 78px;
 }
 
 .pay-set-item > i {
@@ -552,16 +607,16 @@
 }
 
 .slfa-btn-primary {
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    border-color: rgba(99, 102, 241, 0.4);
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    border-color: rgba(59, 130, 246, 0.45);
     color: #fff;
     padding: 10px 22px;
     font-size: 0.9rem;
 }
 
 .slfa-btn-primary:hover:not(:disabled) {
-    background: linear-gradient(135deg, #818cf8, #a78bfa);
-    box-shadow: 0 0 16px rgba(99, 102, 241, 0.35);
+    background: linear-gradient(135deg, #3b82f6, #60a5fa);
+    box-shadow: 0 0 16px rgba(59, 130, 246, 0.28);
     transform: translateY(-1px);
 }
 
@@ -575,6 +630,7 @@
 /* ── Table ───────────────────────────────────────────────────────── */
 .slfa-table-wrap {
     overflow-x: auto;
+    background: rgba(2, 6, 23, 0.18);
 }
 
 .slfa-table {
@@ -586,7 +642,7 @@
 }
 
 .slfa-table th {
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(15, 23, 42, 0.7);
     color: #94a3b8;
     font-size: 0.75rem;
     font-weight: 600;
@@ -594,13 +650,13 @@
     letter-spacing: 0.05em;
     padding: 11px 14px;
     text-align: left;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.12);
     white-space: nowrap;
 }
 
 .slfa-table td {
-    padding: 10px 14px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.08);
     vertical-align: middle;
 }
 
@@ -686,14 +742,14 @@
 
 .slfa-calc-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 14px;
     padding: 20px;
 }
 
 .slfa-calc-card {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(15, 23, 42, 0.18));
+    border: 1px solid rgba(148, 163, 184, 0.12);
     border-radius: 12px;
     padding: 16px 18px;
     display: flex;
@@ -1011,6 +1067,30 @@
     color: #fca5a5;
 }
 
+.slfa-modal-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.slfa-modal-print:hover {
+    background: rgba(99, 102, 241, 0.18);
+    border-color: rgba(129, 140, 248, 0.4);
+    color: #c7d2fe;
+}
+
+.slfa-modal-print:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.slfa-modal-print:disabled:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+}
+
 /* Modal body */
 .slfa-modal-body {
     padding: 24px;
@@ -1287,6 +1367,27 @@
         flex-direction: column;
         align-items: flex-start;
     }
+}
+
+html[dir="rtl"] .slfa-detail-head,
+html[dir="rtl"] .slfa-section-head,
+html[dir="rtl"] .slfa-payment-form,
+html[dir="rtl"] .slfa-entry-filters,
+html[dir="rtl"] .slfa-card-top,
+html[dir="rtl"] .slfa-card-name,
+html[dir="rtl"] .dhead-identity,
+html[dir="rtl"] .pay-set-item,
+html[dir="rtl"] .slfa-calc-card,
+html[dir="rtl"] .slfa-modal-header,
+html[dir="rtl"] .slfa-modal-title,
+html[dir="rtl"] .slfa-modal-header-actions {
+    direction: rtl;
+}
+
+html[dir="rtl"] .slfa-section-head,
+html[dir="rtl"] .slfa-payment-form,
+html[dir="rtl"] .slfa-entry-filters {
+    text-align: right;
 }
 
 /* 640px: mobile */

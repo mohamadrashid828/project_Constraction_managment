@@ -78,6 +78,8 @@ function parse_gechkari_report_meta($notes) {
     return $meta;
 }
 
+$appLanguage = $_SESSION['language'] ?? 'en';
+
 $breakdown = trim((string)($_GET['breakdown'] ?? 'category'));
 $allowedBreakdowns = ['category', 'building', 'floor', 'apartment', 'stakeholder'];
 if (!in_array($breakdown, $allowedBreakdowns, true)) {
@@ -116,6 +118,7 @@ $sql = "SELECT 'gechkari' AS source, m.id, m.measurement_date AS entry_date,
     UNION ALL
     SELECT 'generic' AS source, e.id, e.work_date AS entry_date,
         e.work_type_key, COALESCE(pwt.work_type_name, e.work_type_key) AS work_type_name,
+        COALESCE(pwt.work_type_name_ku, pwt.work_type_name, e.work_type_key) AS work_type_name_ku,
         e.stakeholder_id, COALESCE(ps.stakeholder_name, '') AS stakeholder_name, COALESCE(sp.subpart_name, '') AS subpart_name,
         e.quantity, e.unit_price, e.total_price, e.metric_type, e.currency_type,
         e.status,
@@ -152,6 +155,12 @@ if ($result) {
             $row['currency_type'] = $meta['currency'] !== '' ? $meta['currency'] : 'USD';
             $row['notes'] = $meta['notes'];
         }
+
+        $kuName = trim((string)($row['work_type_name_ku'] ?? ''));
+        if ($appLanguage === 'ckb' && $kuName !== '') {
+            $row['work_type_name'] = $kuName;
+        }
+
         $row['currency_type'] = $row['currency_type'] ?: 'IQD';
 
         if ($filterWorkType !== '' && $row['work_type_key'] !== $filterWorkType) {
@@ -201,16 +210,28 @@ foreach ($entries as $entry) {
     $totalQuantity += $quantity;
     $totalValueByCurrency[$currency] = ($totalValueByCurrency[$currency] ?? 0) + $value;
 
+    // Not tied to any building at all (e.g. site-wide equipment work) —
+    // distinct from a specific building's own common area.
+    $isProjectWideEntry = (int)$entry['building_id'] === 0;
+
     switch ($breakdown) {
         case 'building':
-            $groupLabel = trim((string)$entry['building_name']) !== '' ? (string)$entry['building_name'] : '—';
+            $groupLabel = $isProjectWideEntry
+                ? 'Project-Wide'
+                : (trim((string)$entry['building_name']) !== '' ? (string)$entry['building_name'] : '—');
             break;
         case 'floor':
-            $groupLabel = trim((string)$entry['building_name']) . ' / ' . trim((string)$entry['floor_name']);
+            $groupLabel = $isProjectWideEntry
+                ? 'Project-Wide'
+                : (trim((string)$entry['building_name']) . ' / ' . trim((string)$entry['floor_name']));
             break;
         case 'apartment':
-            $apartmentLabel = (int)$entry['apartment_id'] > 0 ? ('Apt ' . (string)$entry['apartment_number']) : 'Common Area';
-            $groupLabel = trim((string)$entry['building_name']) . ' / ' . trim((string)$entry['floor_name']) . ' / ' . $apartmentLabel;
+            if ($isProjectWideEntry) {
+                $groupLabel = 'Project-Wide';
+            } else {
+                $apartmentLabel = (int)$entry['apartment_id'] > 0 ? ('Apt ' . (string)$entry['apartment_number']) : 'Common Area';
+                $groupLabel = trim((string)$entry['building_name']) . ' / ' . trim((string)$entry['floor_name']) . ' / ' . $apartmentLabel;
+            }
             break;
         case 'stakeholder':
             $groupLabel = trim((string)$entry['stakeholder_name']) !== '' ? (string)$entry['stakeholder_name'] : 'No Stakeholder';

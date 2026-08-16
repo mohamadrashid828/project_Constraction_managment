@@ -77,7 +77,7 @@ $usersList = $conn->query("SELECT id, username FROM users ORDER BY username");
 function money($v) { return '$' . number_format((float) $v, 2); }
 function qty_fmt($v) { return rtrim(rtrim(number_format((float) $v, 3, '.', ','), '0'), '.'); }
 
-$pageTitle = 'Storage - Green World Towers';
+$pageTitle = t('storage_inventory', 'Storage & Inventory') . ' - ' . t('construction_management', 'Construction Management');
 $pageCss = 'storage.css';
 $activePage = 'storage';
 require_once 'partials/header.php';
@@ -87,9 +87,9 @@ require_once 'partials/header.php';
 
 <main class="main-content">
     <header class="page-header">
-        <h1><i class="fas fa-boxes-stacked"></i> Storage &amp; Inventory</h1>
+        <h1><i class="fas fa-boxes-stacked"></i> <?php echo htmlspecialchars(t('storage_inventory', 'Storage & Inventory')); ?></h1>
         <div class="user-info">
-            <span>Welcome, <?php echo htmlspecialchars($_SESSION['username']); ?></span>
+            <span><?php echo htmlspecialchars(t('welcome', 'Welcome')); ?>, <?php echo htmlspecialchars($_SESSION['username']); ?></span>
         </div>
     </header>
 
@@ -99,49 +99,49 @@ require_once 'partials/header.php';
         <div class="storage-stats">
             <div class="stg-stat">
                 <div class="stg-stat-icon icon-items"><i class="fas fa-box"></i></div>
-                <div class="stg-stat-body"><span class="stg-stat-value"><?php echo $totalItems; ?></span><span class="stg-stat-label">Items in catalogue</span></div>
+                <div class="stg-stat-body"><span class="stg-stat-value"><?php echo $totalItems; ?></span><span class="stg-stat-label"><?php echo htmlspecialchars(t('items_in_catalogue', 'Items in catalogue')); ?></span></div>
             </div>
             <div class="stg-stat">
                 <div class="stg-stat-icon icon-value"><i class="fas fa-sack-dollar"></i></div>
-                <div class="stg-stat-body"><span class="stg-stat-value"><?php echo money($totalValue); ?></span><span class="stg-stat-label">Estimated stock value</span></div>
+                <div class="stg-stat-body"><span class="stg-stat-value"><?php echo money($totalValue); ?></span><span class="stg-stat-label"><?php echo htmlspecialchars(t('estimated_stock_value', 'Estimated stock value')); ?></span></div>
             </div>
             <div class="stg-stat">
                 <div class="stg-stat-icon icon-pending"><i class="fas fa-clipboard-list"></i></div>
-                <div class="stg-stat-body"><span class="stg-stat-value"><?php echo $pendingRequestsCount; ?></span><span class="stg-stat-label">Pending requests</span></div>
+                <div class="stg-stat-body"><span class="stg-stat-value"><?php echo $pendingRequestsCount; ?></span><span class="stg-stat-label"><?php echo htmlspecialchars(t('pending_requests', 'Pending requests')); ?></span></div>
             </div>
             <div class="stg-stat">
                 <div class="stg-stat-icon icon-low"><i class="fas fa-battery-quarter"></i></div>
-                <div class="stg-stat-body"><span class="stg-stat-value"><?php echo $lowStock; ?></span><span class="stg-stat-label">Low stock</span></div>
+                <div class="stg-stat-body"><span class="stg-stat-value"><?php echo $lowStock; ?></span><span class="stg-stat-label"><?php echo htmlspecialchars(t('low_stock', 'Low stock')); ?></span></div>
             </div>
             <div class="stg-stat">
                 <div class="stg-stat-icon icon-empty"><i class="fas fa-triangle-exclamation"></i></div>
-                <div class="stg-stat-body"><span class="stg-stat-value"><?php echo $outOfStock; ?></span><span class="stg-stat-label">Out of stock</span></div>
+                <div class="stg-stat-body"><span class="stg-stat-value"><?php echo $outOfStock; ?></span><span class="stg-stat-label"><?php echo htmlspecialchars(t('out_of_stock', 'Out of stock')); ?></span></div>
             </div>
         </div>
 
         <!-- Tabs -->
         <div class="storage-tabs">
-            <button class="stg-tab active" data-tab="balance"><i class="fas fa-scale-balanced"></i> Stock Balance</button>
-            <button class="stg-tab" data-tab="items"><i class="fas fa-box-open"></i> Items</button>
-            <?php if ($can['receive_stock']): ?><button class="stg-tab" data-tab="stockin"><i class="fas fa-arrow-down-to-line"></i> Stock In</button><?php endif; ?>
-            <?php if ($can['issue_stock']): ?><button class="stg-tab" data-tab="stockout"><i class="fas fa-arrow-up-from-line"></i> Stock Out</button><?php endif; ?>
-            <button class="stg-tab" data-tab="requests"><i class="fas fa-clipboard-check"></i> Requests<?php if ($pendingRequestsCount): ?> <span class="stg-badge-count"><?php echo $pendingRequestsCount; ?></span><?php endif; ?></button>
-            <button class="stg-tab" data-tab="history"><i class="fas fa-clock-rotate-left"></i> History</button>
+            <button class="stg-tab active" data-tab="balance"><i class="fas fa-scale-balanced"></i> <?php echo htmlspecialchars(t('stock_balance', 'Stock Balance')); ?></button>
+            <button class="stg-tab" data-tab="items"><i class="fas fa-box-open"></i> <?php echo htmlspecialchars(t('items', 'Items')); ?></button>
+            <?php if ($can['receive_stock']): ?><button class="stg-tab" data-tab="stockin"><i class="fas fa-arrow-down-to-line"></i> <?php echo htmlspecialchars(t('stock_in', 'Stock In')); ?></button><?php endif; ?>
+            <?php if ($can['issue_stock']): ?><button class="stg-tab" data-tab="stockout"><i class="fas fa-arrow-up-from-line"></i> <?php echo htmlspecialchars(t('stock_out', 'Stock Out')); ?></button><?php endif; ?>
+            <button class="stg-tab" data-tab="requests"><i class="fas fa-clipboard-check"></i> <?php echo htmlspecialchars(t('requests', 'Requests')); ?><?php if ($pendingRequestsCount): ?> <span class="stg-badge-count"><?php echo $pendingRequestsCount; ?></span><?php endif; ?></button>
+            <button class="stg-tab" data-tab="history"><i class="fas fa-clock-rotate-left"></i> <?php echo htmlspecialchars(t('history', 'History')); ?></button>
         </div>
 
         <!-- ═══ BALANCE ═══ -->
         <section class="stg-panel active" id="tab-balance">
             <div class="stg-panel-head">
-                <h2><i class="fas fa-scale-balanced"></i> Current Stock</h2>
+                <h2><i class="fas fa-scale-balanced"></i> <?php echo htmlspecialchars(t('current_stock', 'Current Stock')); ?></h2>
             </div>
 
             <form class="stg-filter-bar" id="filter-balance">
-                <input type="text" name="q" placeholder="Search item name…">
+                <input type="text" name="q" placeholder="<?php echo htmlspecialchars(t('search_item_name', 'Search item name…')); ?>">
                 <select name="stock_status">
-                    <option value="">All stock levels</option>
-                    <option value="ok">In Stock</option>
-                    <option value="low">Low Stock</option>
-                    <option value="out">Out of Stock</option>
+                    <option value=""><?php echo htmlspecialchars(t('all_stock_levels', 'All stock levels')); ?></option>
+                    <option value="ok"><?php echo htmlspecialchars(t('in_stock', 'In Stock')); ?></option>
+                    <option value="low"><?php echo htmlspecialchars(t('low_stock_label', 'Low Stock')); ?></option>
+                    <option value="out"><?php echo htmlspecialchars(t('out_of_stock_label', 'Out of Stock')); ?></option>
                 </select>
             </form>
 
@@ -177,32 +177,32 @@ require_once 'partials/header.php';
             <div class="stg-grid">
                 <?php if ($can['create'] || $can['edit']): ?>
                 <div class="panel-card stg-form-card">
-                    <div class="card-header"><h2><i class="fas fa-box-open"></i> Add Item</h2></div>
+                    <div class="card-header"><h2><i class="fas fa-box-open"></i> <?php echo htmlspecialchars(t('add_item', 'Add Item')); ?></h2></div>
                     <form class="settings-form storage-ajax-form" id="item-form" data-refresh>
                         <?php echo csrf_field(); ?>
                         <input type="hidden" name="action" value="save_item">
                         <input type="hidden" name="item_id" value="">
-                        <div class="form-group"><label>Item Name</label><input type="text" name="item_name" placeholder="e.g., Cement, Block, Cable 2.5mm" required></div>
+                        <div class="form-group"><label><?php echo htmlspecialchars(t('item_name', 'Item Name')); ?></label><input type="text" name="item_name" placeholder="e.g., Cement, Block, Cable 2.5mm" required></div>
                         <div class="form-group">
-                            <label>Unit of Measure</label>
+                            <label><?php echo htmlspecialchars(t('unit_of_measure', 'Unit of Measure')); ?></label>
                             <input type="text" name="unit" placeholder="e.g., bag, m², pcs" required>
                         </div>
-                        <div class="form-group"><label>Item Code <span class="stg-optional">(optional)</span></label><input type="text" name="item_code"></div>
+                        <div class="form-group"><label><?php echo htmlspecialchars(t('item_code', 'Item Code')); ?> <span class="stg-optional"><?php echo htmlspecialchars(t('optional', '(optional)')); ?></span></label><input type="text" name="item_code"></div>
                         <div class="stg-form-actions">
-                            <button class="btn btn-primary" type="submit"><i class="fas fa-save"></i> <span id="item-form-btn-label">Add Item</span></button>
-                            <button class="btn btn-secondary stg-cancel-edit" type="button" data-form="item-form" style="display:none;">Cancel</button>
+                            <button class="btn btn-primary" type="submit"><i class="fas fa-save"></i> <span id="item-form-btn-label"><?php echo htmlspecialchars(t('add_item', 'Add Item')); ?></span></button>
+                            <button class="btn btn-secondary stg-cancel-edit" type="button" data-form="item-form" style="display:none;"><?php echo htmlspecialchars(t('cancel', 'Cancel')); ?></button>
                         </div>
                     </form>
                 </div>
                 <?php endif; ?>
                 <div class="stg-list-card">
-                    <h3 class="stg-list-title"><i class="fas fa-list"></i> Catalogue</h3>
+                    <h3 class="stg-list-title"><i class="fas fa-list"></i> <?php echo htmlspecialchars(t('catalogue', 'Catalogue')); ?></h3>
                     <div class="stg-table-wrap">
                         <table class="data-table stg-table">
-                            <thead><tr><th>Item</th><th>Unit</th><th>Code</th><?php if ($can['edit'] || $can['delete']): ?><th>Actions</th><?php endif; ?></tr></thead>
+                            <thead><tr><th><?php echo htmlspecialchars(t('item', 'Item')); ?></th><th><?php echo htmlspecialchars(t('unit', 'Unit')); ?></th><th><?php echo htmlspecialchars(t('code', 'Code')); ?></th><?php if ($can['edit'] || $can['delete']): ?><th><?php echo htmlspecialchars(t('actions', 'Actions')); ?></th><?php endif; ?></tr></thead>
                             <tbody>
                             <?php if (!$items): ?>
-                                <tr><td colspan="4" class="stg-empty">No items yet.</td></tr>
+                                <tr><td colspan="4" class="stg-empty"><?php echo htmlspecialchars(t('no_items_yet_add', 'No items yet. Add one in the Items tab.')); ?></td></tr>
                             <?php else: foreach ($items as $it): ?>
                                 <tr>
                                     <td class="stg-strong"><?php echo htmlspecialchars($it['item_name']); ?></td>
@@ -216,10 +216,10 @@ require_once 'partials/header.php';
                                             data-name="<?php echo htmlspecialchars($it['item_name'], ENT_QUOTES); ?>"
                                             data-unit="<?php echo htmlspecialchars($it['unit'], ENT_QUOTES); ?>"
                                             data-code="<?php echo htmlspecialchars($it['item_code'] ?? '', ENT_QUOTES); ?>"
-                                            title="Edit"><i class="fas fa-edit"></i></button>
+                                            title="<?php echo htmlspecialchars(t('edit', 'Edit')); ?>"><i class="fas fa-edit"></i></button>
                                         <?php endif; ?>
                                         <?php if ($can['delete']): ?>
-                                        <button type="button" class="stg-icon-btn stg-reject stg-delete-item" data-id="<?php echo (int) $it['id']; ?>" title="Remove"><i class="fas fa-trash"></i></button>
+                                        <button type="button" class="stg-icon-btn stg-reject stg-delete-item" data-id="<?php echo (int) $it['id']; ?>" title="<?php echo htmlspecialchars(t('delete', 'Delete')); ?>"><i class="fas fa-trash"></i></button>
                                         <?php endif; ?>
                                     </td>
                                     <?php endif; ?>
@@ -237,45 +237,45 @@ require_once 'partials/header.php';
         <section class="stg-panel" id="tab-stockin">
             <div class="stg-grid">
                 <div class="panel-card stg-form-card">
-                    <div class="card-header"><h2><i class="fas fa-arrow-down-to-line"></i> Receive Stock (Purchase)</h2></div>
+                    <div class="card-header"><h2><i class="fas fa-arrow-down-to-line"></i> <?php echo htmlspecialchars(t('receive_stock_purchase', 'Receive Stock (Purchase)')); ?></h2></div>
                     <form class="settings-form storage-ajax-form" id="stock-in-form" enctype="multipart/form-data" data-refresh>
                         <?php echo csrf_field(); ?>
                         <input type="hidden" name="action" value="stock_in">
 
                         <div class="form-group">
-                            <label>Item</label>
+                            <label><?php echo htmlspecialchars(t('item', 'Item')); ?></label>
                             <select name="item_id" id="stockin-item" required>
-                                <option value="">Select item…</option>
+                                <option value=""><?php echo htmlspecialchars(t('select_item', 'Select item…')); ?></option>
                                 <?php foreach ($items as $it): ?>
                                     <option value="<?php echo (int) $it['id']; ?>" data-unit="<?php echo htmlspecialchars($it['unit'], ENT_QUOTES); ?>">
                                         <?php echo htmlspecialchars($it['item_name']); ?> — <?php echo htmlspecialchars($it['unit']); ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
-                            <?php if (!$items): ?><small class="stg-hint">No items yet — add one in the Items tab first.</small><?php endif; ?>
+                            <?php if (!$items): ?><small class="stg-hint"><?php echo htmlspecialchars(t('no_items_hint', 'No items yet — add one in the Items tab first.')); ?></small><?php endif; ?>
                         </div>
                         <div class="stg-form-row">
-                            <div class="form-group"><label>Quantity <span class="stg-unit-echo" id="stockin-unit-echo"></span></label><input type="number" name="quantity" id="stockin-qty" step="0.001" min="0" required></div>
-                            <div class="form-group"><label>Price We Bought (per unit)</label><input type="number" name="unit_price" id="stockin-price" step="0.01" min="0" value="0"></div>
+                            <div class="form-group"><label><?php echo htmlspecialchars(t('quantity', 'Quantity')); ?> <span class="stg-unit-echo" id="stockin-unit-echo"></span></label><input type="number" name="quantity" id="stockin-qty" step="0.001" min="0" required></div>
+                            <div class="form-group"><label><?php echo htmlspecialchars(t('unit_price', 'Unit Price')); ?></label><input type="number" name="unit_price" id="stockin-price" step="0.01" min="0" value="0"></div>
                         </div>
-                        <div class="stg-live-total" id="stockin-total">Total: —</div>
+                        <div class="stg-live-total" id="stockin-total"><?php echo htmlspecialchars(t('total', 'Total')); ?>: —</div>
                         <div class="stg-form-row">
-                            <div class="form-group"><label>Date</label><input type="date" name="purchase_date" value="<?php echo $today; ?>"></div>
-                            <div class="form-group"><label>Vendor</label><input type="text" name="vendor" placeholder="Supplier (optional)"></div>
+                            <div class="form-group"><label><?php echo htmlspecialchars(t('date', 'Date')); ?></label><input type="date" name="purchase_date" value="<?php echo $today; ?>"></div>
+                            <div class="form-group"><label><?php echo htmlspecialchars(t('vendor', 'Vendor')); ?></label><input type="text" name="vendor" placeholder="<?php echo htmlspecialchars(t('supplier_optional', 'Supplier (optional)')); ?>"></div>
                         </div>
                         <div class="stg-form-row">
-                            <div class="form-group"><label>Ordered By (Full Name)</label><input type="text" name="ordered_by_name" placeholder="Who requested/ordered this purchase" required></div>
-                            <div class="form-group"><label>Invoice #</label><input type="text" name="invoice_no" placeholder="Optional"></div>
+                            <div class="form-group"><label><?php echo htmlspecialchars(t('ordered_by_full_name', 'Ordered By (Full Name)')); ?></label><input type="text" name="ordered_by_name" placeholder="<?php echo htmlspecialchars(t('who_requested_ordered', 'Who requested/ordered this purchase')); ?>" required></div>
+                            <div class="form-group"><label><?php echo htmlspecialchars(t('invoice_number', 'Invoice #')); ?></label><input type="text" name="invoice_no" placeholder="<?php echo htmlspecialchars(t('optional', '(optional)')); ?>"></div>
                         </div>
                         <div class="form-group">
-                            <label>Invoice (PDF) <span class="stg-required">required</span></label>
+                            <label><?php echo htmlspecialchars(t('invoice', 'Invoice')); ?> (PDF) <span class="stg-required"><?php echo htmlspecialchars(t('required', 'required')); ?></span></label>
                             <input type="file" name="invoice_file" accept="application/pdf" required>
                         </div>
                         <?php if ($approvedRequests): ?>
                         <div class="form-group">
-                            <label>Fulfilling Request <span class="stg-optional">(optional)</span></label>
+                            <label><?php echo htmlspecialchars(t('fulfilling_request', 'Fulfilling Request')); ?> <span class="stg-optional"><?php echo htmlspecialchars(t('optional', '(optional)')); ?></span></label>
                             <select name="request_id">
-                                <option value="">— None —</option>
+                                <option value="">— <?php echo htmlspecialchars(t('none', 'None')); ?> —</option>
                                 <?php foreach ($approvedRequests as $rq): ?>
                                     <option value="<?php echo (int) $rq['id']; ?>">
                                         <?php echo htmlspecialchars($rq['item_name']); ?> — <?php echo qty_fmt($rq['quantity']); ?> <?php echo htmlspecialchars($rq['unit'] ?? ''); ?>
@@ -285,25 +285,25 @@ require_once 'partials/header.php';
                             </select>
                         </div>
                         <?php endif; ?>
-                        <div class="form-group"><label>Notes</label><input type="text" name="notes" placeholder="Optional"></div>
-                        <button class="btn btn-primary btn-block" type="submit"><i class="fas fa-arrow-down-to-line"></i> Record &amp; Stock In</button>
+                        <div class="form-group"><label><?php echo htmlspecialchars(t('notes', 'Notes')); ?></label><input type="text" name="notes" placeholder="<?php echo htmlspecialchars(t('optional', 'Optional')); ?>"></div>
+                        <button class="btn btn-primary btn-block" type="submit"><i class="fas fa-arrow-down-to-line"></i> <?php echo htmlspecialchars(t('record_stock_in', 'Record & Stock In')); ?></button>
                     </form>
                 </div>
                 <div class="stg-list-card">
-                    <h3 class="stg-list-title"><i class="fas fa-receipt"></i> Recent Purchases</h3>
+                    <h3 class="stg-list-title"><i class="fas fa-receipt"></i> <?php echo htmlspecialchars(t('recent_purchases', 'Recent Purchases')); ?></h3>
                     <form class="stg-filter-bar" id="filter-purchases">
-                        <input type="date" name="date_from" title="From date">
-                        <input type="date" name="date_to" title="To date">
+                        <input type="date" name="date_from" title="<?php echo htmlspecialchars(t('from_date', 'From date')); ?>">
+                        <input type="date" name="date_to" title="<?php echo htmlspecialchars(t('to_date', 'To date')); ?>">
                         <select name="item_id">
-                            <option value="">All items</option>
+                            <option value=""><?php echo htmlspecialchars(t('all_items', 'All items')); ?></option>
                             <?php foreach ($items as $it): ?><option value="<?php echo (int) $it['id']; ?>"><?php echo htmlspecialchars($it['item_name']); ?></option><?php endforeach; ?>
                         </select>
-                        <input type="text" name="vendor" placeholder="Vendor…">
-                        <input type="text" name="ordered_by" placeholder="Ordered by…">
+                        <input type="text" name="vendor" placeholder="<?php echo htmlspecialchars(t('vendor', 'Vendor')); ?>…">
+                        <input type="text" name="ordered_by" placeholder="<?php echo htmlspecialchars(t('ordered_by', 'Ordered By')); ?>…">
                     </form>
                     <div class="stg-table-wrap">
                         <table class="data-table stg-table">
-                            <thead><tr><th>Date</th><th>Item</th><th class="num">Qty</th><th class="num">Unit $</th><th class="num">Total</th><th>Vendor</th><th>Ordered By</th><th>Invoice #</th><th>PDF</th></tr></thead>
+                            <thead><tr><th><?php echo htmlspecialchars(t('date', 'Date')); ?></th><th><?php echo htmlspecialchars(t('item', 'Item')); ?></th><th class="num"><?php echo htmlspecialchars(t('qty', 'Qty')); ?></th><th class="num"><?php echo htmlspecialchars(t('unit_price', 'Unit Price')); ?></th><th class="num"><?php echo htmlspecialchars(t('total', 'Total')); ?></th><th><?php echo htmlspecialchars(t('vendor', 'Vendor')); ?></th><th><?php echo htmlspecialchars(t('ordered_by', 'Ordered By')); ?></th><th><?php echo htmlspecialchars(t('invoice_number', 'Invoice #')); ?></th><th><?php echo htmlspecialchars(t('pdf', 'PDF')); ?></th></tr></thead>
                             <tbody id="purchases-tbody"></tbody>
                         </table>
                     </div>
@@ -317,36 +317,36 @@ require_once 'partials/header.php';
         <section class="stg-panel" id="tab-stockout">
             <div class="stg-grid">
                 <div class="panel-card stg-form-card">
-                    <div class="card-header"><h2><i class="fas fa-arrow-up-from-line"></i> Issue Stock (Use)</h2></div>
+                    <div class="card-header"><h2><i class="fas fa-arrow-up-from-line"></i> <?php echo htmlspecialchars(t('issue_stock_use', 'Issue Stock (Use)')); ?></h2></div>
                     <form class="settings-form storage-ajax-form" id="stock-out-form" data-refresh>
                         <?php echo csrf_field(); ?>
                         <input type="hidden" name="action" value="stock_out">
 
                         <div class="form-group">
-                            <label>Item</label>
+                            <label><?php echo htmlspecialchars(t('item', 'Item')); ?></label>
                             <select name="item_id" id="stockout-item" required>
-                                <option value="">Select item…</option>
+                                <option value=""><?php echo htmlspecialchars(t('select_item', 'Select item…')); ?></option>
                                 <?php foreach ($items as $it): ?>
                                     <option value="<?php echo (int) $it['id']; ?>" data-balance="<?php echo (float) $it['balance']; ?>" data-unit="<?php echo htmlspecialchars($it['unit'], ENT_QUOTES); ?>">
-                                        <?php echo htmlspecialchars($it['item_name']); ?> (<?php echo qty_fmt($it['balance']); ?> <?php echo htmlspecialchars($it['unit']); ?> in stock)
+                                        <?php echo htmlspecialchars($it['item_name']); ?> (<?php echo qty_fmt($it['balance']); ?> <?php echo htmlspecialchars($it['unit']); ?> <?php echo htmlspecialchars(t('in_stock', 'in stock')); ?>)
                                     </option>
                                 <?php endforeach; ?>
                             </select>
                             <small class="stg-hint" id="stockout-balance-hint"></small>
                         </div>
                         <div class="stg-form-row">
-                            <div class="form-group"><label>Quantity</label><input type="number" name="quantity" step="0.001" min="0" required></div>
-                            <div class="form-group"><label>Date</label><input type="date" name="movement_date" value="<?php echo $today; ?>"></div>
+                            <div class="form-group"><label><?php echo htmlspecialchars(t('quantity', 'Quantity')); ?></label><input type="number" name="quantity" step="0.001" min="0" required></div>
+                            <div class="form-group"><label><?php echo htmlspecialchars(t('date', 'Date')); ?></label><input type="date" name="movement_date" value="<?php echo $today; ?>"></div>
                         </div>
-                        <div class="form-group"><label>Taken By (Full Name)</label><input type="text" name="person_name" placeholder="Who is taking this stock" required></div>
+                        <div class="form-group"><label><?php echo htmlspecialchars(t('taken_by_full_name', 'Taken By (Full Name)')); ?></label><input type="text" name="person_name" placeholder="<?php echo htmlspecialchars(t('who_is_taking_stock', 'Who is taking this stock')); ?>" required></div>
                         <label class="stg-projectwide">
                             <input type="checkbox" name="is_project_wide" id="projectwide-toggle" value="1">
-                            <span><i class="fas fa-diagram-project"></i> Project-wide (used across the whole project — allocate to apartments later)</span>
+                            <span><i class="fas fa-diagram-project"></i> <?php echo htmlspecialchars(t('project_wide_note', 'Project-wide (used across the whole project — allocate to apartments later)')); ?></span>
                         </label>
                         <div id="location-fields">
                             <div class="stg-form-row">
                                 <div class="form-group">
-                                    <label>Building <span class="stg-optional">(optional)</span></label>
+                                    <label><?php echo htmlspecialchars(t('building', 'Building')); ?> <span class="stg-optional"><?php echo htmlspecialchars(t('optional', '(optional)')); ?></span></label>
                                     <select name="building_id" id="stockout-building">
                                         <option value="">—</option>
                                         <?php foreach ($buildings as $b): ?>
@@ -355,39 +355,39 @@ require_once 'partials/header.php';
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label>Floor <span class="stg-optional">(optional)</span></label>
+                                    <label><?php echo htmlspecialchars(t('floor', 'Floor')); ?> <span class="stg-optional"><?php echo htmlspecialchars(t('optional', '(optional)')); ?></span></label>
                                     <select name="floor_id" id="stockout-floor"><option value="">—</option></select>
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label>Apartment <span class="stg-optional">(optional)</span></label>
+                                <label><?php echo htmlspecialchars(t('apartment', 'Apartment')); ?> <span class="stg-optional"><?php echo htmlspecialchars(t('optional', '(optional)')); ?></span></label>
                                 <select name="apartment_id" id="stockout-apartment"><option value="">—</option></select>
                             </div>
                         </div>
-                        <div class="form-group"><label>Notes</label><input type="text" name="notes" placeholder="Optional"></div>
-                        <button class="btn btn-primary btn-block" type="submit"><i class="fas fa-arrow-up-from-line"></i> Issue Stock</button>
+                        <div class="form-group"><label><?php echo htmlspecialchars(t('notes', 'Notes')); ?></label><input type="text" name="notes" placeholder="<?php echo htmlspecialchars(t('optional', 'Optional')); ?>"></div>
+                        <button class="btn btn-primary btn-block" type="submit"><i class="fas fa-arrow-up-from-line"></i> <?php echo htmlspecialchars(t('issue_stock_use', 'Issue Stock')); ?></button>
                     </form>
                 </div>
                 <div class="stg-list-card">
-                    <h3 class="stg-list-title"><i class="fas fa-dolly"></i> Recent Stock Out</h3>
+                    <h3 class="stg-list-title"><i class="fas fa-dolly"></i> <?php echo htmlspecialchars(t('recent_stock_out', 'Recent Stock Out')); ?></h3>
                     <form class="stg-filter-bar" id="filter-movements">
-                        <input type="date" name="date_from" title="From date">
-                        <input type="date" name="date_to" title="To date">
+                        <input type="date" name="date_from" title="<?php echo htmlspecialchars(t('from_date', 'From date')); ?>">
+                        <input type="date" name="date_to" title="<?php echo htmlspecialchars(t('to_date', 'To date')); ?>">
                         <select name="item_id">
-                            <option value="">All items</option>
+                            <option value=""><?php echo htmlspecialchars(t('all_items', 'All items')); ?></option>
                             <?php foreach ($items as $it): ?><option value="<?php echo (int) $it['id']; ?>"><?php echo htmlspecialchars($it['item_name']); ?></option><?php endforeach; ?>
                         </select>
                         <select name="building_id" id="movements-filter-building">
-                            <option value="">All locations</option>
+                            <option value=""><?php echo htmlspecialchars(t('all_locations', 'All locations')); ?></option>
                             <?php foreach ($buildings as $b): ?>
                                 <option value="<?php echo (int) $b['id']; ?>"><?php echo htmlspecialchars($b['building_name']); ?></option>
                             <?php endforeach; ?>
                         </select>
-                        <input type="text" name="taken_by" placeholder="Taken by…">
+                        <input type="text" name="taken_by" placeholder="<?php echo htmlspecialchars(t('taken_by', 'Taken by…')); ?>">
                     </form>
                     <div class="stg-table-wrap">
                         <table class="data-table stg-table">
-                            <thead><tr><th>Date</th><th>Item</th><th class="num">Qty</th><th>Location</th><th>Taken By</th><th>Notes</th></tr></thead>
+                            <thead><tr><th><?php echo htmlspecialchars(t('date', 'Date')); ?></th><th><?php echo htmlspecialchars(t('item', 'Item')); ?></th><th class="num"><?php echo htmlspecialchars(t('quantity', 'Qty')); ?></th><th><?php echo htmlspecialchars(t('location', 'Location')); ?></th><th><?php echo htmlspecialchars(t('taken_by', 'Taken By')); ?></th><th><?php echo htmlspecialchars(t('notes', 'Notes')); ?></th></tr></thead>
                             <tbody id="movements-tbody"></tbody>
                         </table>
                     </div>
@@ -401,85 +401,85 @@ require_once 'partials/header.php';
             <div class="stg-grid">
                 <?php if ($can['create']): ?>
                 <div class="panel-card stg-form-card">
-                    <div class="card-header"><h2><i class="fas fa-clipboard-list"></i> New Purchase Request</h2></div>
+                    <div class="card-header"><h2><i class="fas fa-clipboard-list"></i> <?php echo htmlspecialchars(t('new_purchase_request', 'New Purchase Request')); ?></h2></div>
                     <form class="settings-form storage-ajax-form" id="request-form" data-refresh>
                         <?php echo csrf_field(); ?>
                         <input type="hidden" name="action" value="create_request">
                         <input type="hidden" name="item_id" id="request-item-id" value="">
 
                         <div class="stg-form-section">
-                            <div class="stg-form-section-title"><i class="fas fa-box"></i> What's Needed</div>
+                            <div class="stg-form-section-title"><i class="fas fa-box"></i> <?php echo htmlspecialchars(t('whats_needed', "What's Needed")); ?></div>
                             <div class="form-group">
-                                <label>Item</label>
+                                <label><?php echo htmlspecialchars(t('item', 'Item')); ?></label>
                                 <select id="request-item-select">
-                                    <option value="">— Select existing item —</option>
+                                    <option value="">— <?php echo htmlspecialchars(t('select_existing_item', 'Select existing item')); ?> —</option>
                                     <?php foreach ($items as $it): ?>
                                         <option value="<?php echo (int) $it['id']; ?>" data-unit="<?php echo htmlspecialchars($it['unit'], ENT_QUOTES); ?>"><?php echo htmlspecialchars($it['item_name']); ?></option>
                                     <?php endforeach; ?>
-                                    <option value="other">+ New item (not yet in catalogue)</option>
+                                    <option value="other"><?php echo htmlspecialchars(t('new_item_option', '+ New item (not yet in catalogue)')); ?></option>
                                 </select>
                             </div>
                             <div class="form-group stg-hidden" id="request-new-item-wrap">
-                                <label>New Item Name</label>
-                                <input type="text" name="item_name" id="request-new-item-name" placeholder="What do you need?">
+                                <label><?php echo htmlspecialchars(t('new_item_name', 'New Item Name')); ?></label>
+                                <input type="text" name="item_name" id="request-new-item-name" placeholder="<?php echo htmlspecialchars(t('what_do_you_need', 'What do you need?')); ?>">
                             </div>
                             <div class="stg-form-row">
-                                <div class="form-group"><label>Quantity</label><input type="number" name="quantity" step="0.001" min="0" required></div>
-                                <div class="form-group"><label>Unit</label><input type="text" name="unit" id="request-unit" placeholder="e.g. bag"></div>
+                                <div class="form-group"><label><?php echo htmlspecialchars(t('quantity', 'Quantity')); ?></label><input type="number" name="quantity" step="0.001" min="0" required></div>
+                                <div class="form-group"><label><?php echo htmlspecialchars(t('unit', 'Unit')); ?></label><input type="text" name="unit" id="request-unit" placeholder="e.g. bag"></div>
                             </div>
                         </div>
 
                         <div class="stg-form-section">
-                            <div class="stg-form-section-title"><i class="fas fa-flag"></i> Priority &amp; Timing</div>
+                            <div class="stg-form-section-title"><i class="fas fa-flag"></i> <?php echo htmlspecialchars(t('priority_timing', 'Priority & Timing')); ?></div>
                             <div class="stg-form-row">
                                 <div class="form-group">
-                                    <label>Priority</label>
+                                    <label><?php echo htmlspecialchars(t('priority', 'Priority')); ?></label>
                                     <select name="priority">
-                                        <option value="low">Low</option>
-                                        <option value="medium" selected>Medium</option>
-                                        <option value="high">High</option>
-                                        <option value="urgent">Urgent</option>
+                                        <option value="low"><?php echo htmlspecialchars(t('low', 'Low')); ?></option>
+                                        <option value="medium" selected><?php echo htmlspecialchars(t('medium', 'Medium')); ?></option>
+                                        <option value="high"><?php echo htmlspecialchars(t('high', 'High')); ?></option>
+                                        <option value="urgent"><?php echo htmlspecialchars(t('urgent', 'Urgent')); ?></option>
                                     </select>
                                 </div>
-                                <div class="form-group"><label>Needed By <span class="stg-optional">(optional)</span></label><input type="date" name="needed_by_date"></div>
+                                <div class="form-group"><label><?php echo htmlspecialchars(t('needed_by', 'Needed By')); ?> <span class="stg-optional"><?php echo htmlspecialchars(t('optional', '(optional)')); ?></span></label><input type="date" name="needed_by_date"></div>
                             </div>
                         </div>
 
-                        <div class="form-group"><label>Notes / Justification</label><input type="text" name="notes" placeholder="Reason / details (optional)"></div>
-                        <button class="btn btn-primary btn-block" type="submit"><i class="fas fa-paper-plane"></i> Submit Request</button>
+                        <div class="form-group"><label><?php echo htmlspecialchars(t('notes_justification', 'Notes / Justification')); ?></label><input type="text" name="notes" placeholder="<?php echo htmlspecialchars(t('reason_details', 'Reason / details (optional)')); ?>"></div>
+                        <button class="btn btn-primary btn-block" type="submit"><i class="fas fa-paper-plane"></i> <?php echo htmlspecialchars(t('submit_request', 'Submit Request')); ?></button>
                     </form>
                 </div>
                 <?php endif; ?>
                 <div class="stg-list-card">
-                    <h3 class="stg-list-title"><i class="fas fa-clipboard-check"></i> Requests</h3>
+                    <h3 class="stg-list-title"><i class="fas fa-clipboard-check"></i> <?php echo htmlspecialchars(t('requests', 'Requests')); ?></h3>
                     <form class="stg-filter-bar" id="filter-requests">
-                        <input type="date" name="date_from" title="From date">
-                        <input type="date" name="date_to" title="To date">
-                        <input type="text" name="item" placeholder="Item…">
+                        <input type="date" name="date_from" title="<?php echo htmlspecialchars(t('from_date', 'From date')); ?>">
+                        <input type="date" name="date_to" title="<?php echo htmlspecialchars(t('to_date', 'To date')); ?>">
+                        <input type="text" name="item" placeholder="<?php echo htmlspecialchars(t('item', 'Item')); ?>…">
                         <select name="priority">
-                            <option value="">All priorities</option>
-                            <option value="low">Low</option>
-                            <option value="medium">Medium</option>
-                            <option value="high">High</option>
-                            <option value="urgent">Urgent</option>
+                            <option value=""><?php echo htmlspecialchars(t('all_priorities', 'All priorities')); ?></option>
+                            <option value="low"><?php echo htmlspecialchars(t('low', 'Low')); ?></option>
+                            <option value="medium"><?php echo htmlspecialchars(t('medium', 'Medium')); ?></option>
+                            <option value="high"><?php echo htmlspecialchars(t('high', 'High')); ?></option>
+                            <option value="urgent"><?php echo htmlspecialchars(t('urgent', 'Urgent')); ?></option>
                         </select>
                         <select name="requester_id">
-                            <option value="">All requesters</option>
+                            <option value=""><?php echo htmlspecialchars(t('all_requesters', 'All requesters')); ?></option>
                             <?php while ($u = $usersList->fetch_assoc()): ?>
                                 <option value="<?php echo (int) $u['id']; ?>"><?php echo htmlspecialchars($u['username']); ?></option>
                             <?php endwhile; ?>
                         </select>
                         <select name="status">
-                            <option value="">All statuses</option>
-                            <option value="pending">Pending</option>
-                            <option value="approved">Approved — Awaiting Delivery</option>
-                            <option value="rejected">Rejected</option>
-                            <option value="fulfilled">Delivered</option>
+                            <option value=""><?php echo htmlspecialchars(t('all_statuses', 'All statuses')); ?></option>
+                            <option value="pending"><?php echo htmlspecialchars(t('pending', 'Pending')); ?></option>
+                            <option value="approved"><?php echo htmlspecialchars(t('approved_awaiting_delivery', 'Approved — Awaiting Delivery')); ?></option>
+                            <option value="rejected"><?php echo htmlspecialchars(t('rejected', 'Rejected')); ?></option>
+                            <option value="fulfilled"><?php echo htmlspecialchars(t('delivered', 'Delivered')); ?></option>
                         </select>
                     </form>
                     <div class="stg-table-wrap">
                         <table class="data-table stg-table">
-                            <thead><tr><th>Item</th><th class="num">Qty</th><th>Priority</th><th>Needed By</th><th>Requester</th><th>Status</th><th>Action</th></tr></thead>
+                            <thead><tr><th><?php echo htmlspecialchars(t('item', 'Item')); ?></th><th class="num"><?php echo htmlspecialchars(t('quantity', 'Qty')); ?></th><th><?php echo htmlspecialchars(t('priority', 'Priority')); ?></th><th><?php echo htmlspecialchars(t('needed_by', 'Needed By')); ?></th><th><?php echo htmlspecialchars(t('requester', 'Requester')); ?></th><th><?php echo htmlspecialchars(t('status', 'Status')); ?></th><th><?php echo htmlspecialchars(t('action', 'Action')); ?></th></tr></thead>
                             <tbody id="requests-tbody"></tbody>
                         </table>
                     </div>
@@ -490,28 +490,28 @@ require_once 'partials/header.php';
         <!-- ═══ HISTORY ═══ -->
         <section class="stg-panel" id="tab-history">
             <div class="stg-panel-head">
-                <h2><i class="fas fa-clock-rotate-left"></i> Movement History</h2>
+                <h2><i class="fas fa-clock-rotate-left"></i> <?php echo htmlspecialchars(t('movement_history', 'Movement History')); ?></h2>
                 <?php if ($can['export']): ?>
-                <a href="#" id="history-export-link" class="btn btn-secondary btn-sm" target="_blank"><i class="fas fa-file-csv"></i> Export CSV</a>
+                <a href="#" id="history-export-link" class="btn btn-secondary btn-sm" target="_blank"><i class="fas fa-file-csv"></i> <?php echo htmlspecialchars(t('export_csv', 'Export CSV')); ?></a>
                 <?php endif; ?>
             </div>
             <form class="stg-filter-bar" id="filter-history">
-                <input type="date" name="date_from" title="From date">
-                <input type="date" name="date_to" title="To date">
+                <input type="date" name="date_from" title="<?php echo htmlspecialchars(t('from_date', 'From date')); ?>">
+                <input type="date" name="date_to" title="<?php echo htmlspecialchars(t('to_date', 'To date')); ?>">
                 <select name="item_id">
-                    <option value="">All items</option>
+                    <option value=""><?php echo htmlspecialchars(t('all_items', 'All items')); ?></option>
                     <?php foreach ($items as $it): ?><option value="<?php echo (int) $it['id']; ?>"><?php echo htmlspecialchars($it['item_name']); ?></option><?php endforeach; ?>
                 </select>
                 <select name="direction">
-                    <option value="">In &amp; Out</option>
-                    <option value="in">Stock In</option>
-                    <option value="out">Stock Out</option>
+                    <option value=""><?php echo htmlspecialchars(t('in_and_out', 'In & Out')); ?></option>
+                    <option value="in"><?php echo htmlspecialchars(t('stock_in_short', 'Stock In')); ?></option>
+                    <option value="out"><?php echo htmlspecialchars(t('stock_out_short', 'Stock Out')); ?></option>
                 </select>
-                <input type="text" name="person" placeholder="Person / recorded by…">
+                <input type="text" name="person" placeholder="<?php echo htmlspecialchars(t('person_recorded_by', 'Person / recorded by…')); ?>">
             </form>
             <div class="stg-table-wrap">
                 <table class="data-table stg-table" id="history-table">
-                    <thead><tr><th>Date</th><th>Type</th><th>Item</th><th class="num">Qty</th><th>Location</th><th>Person</th><th>Recorded By</th><th>Notes</th></tr></thead>
+                    <thead><tr><th><?php echo htmlspecialchars(t('date', 'Date')); ?></th><th><?php echo htmlspecialchars(t('type', 'Type')); ?></th><th><?php echo htmlspecialchars(t('item', 'Item')); ?></th><th class="num"><?php echo htmlspecialchars(t('quantity', 'Qty')); ?></th><th><?php echo htmlspecialchars(t('location', 'Location')); ?></th><th><?php echo htmlspecialchars(t('person', 'Person')); ?></th><th><?php echo htmlspecialchars(t('recorded_by', 'Recorded By')); ?></th><th><?php echo htmlspecialchars(t('notes', 'Notes')); ?></th></tr></thead>
                     <tbody id="history-tbody"></tbody>
                 </table>
             </div>
@@ -525,6 +525,9 @@ require_once 'partials/header.php';
 
 <script>
 const STG_CSRF = <?php echo json_encode($csrf); ?>;
+const STG_NETWORK_ERROR = <?php echo json_encode(t('network_try_again', 'Network error. Please try again.')); ?>;
+const STG_REMOVE_ITEM_CONFIRM = <?php echo json_encode(t('remove_item_confirm', 'Remove this item from the active catalogue? Purchase/movement history is kept.')); ?>;
+const STG_TOTAL_LABEL = <?php echo json_encode(t('total', 'Total')); ?>;
 
 function stgToast(msg, type) {
     const t = document.createElement('div');
@@ -565,7 +568,7 @@ function postStorage(formData, onOk) {
             stgToast(d.message, d.success ? 'success' : 'error');
             if (d.success && onOk) onOk();
         })
-        .catch(() => stgToast('Network error. Please try again.', 'error'));
+        .catch(() => stgToast(STG_NETWORK_ERROR, 'error'));
 }
 document.querySelectorAll('.storage-ajax-form').forEach(form => {
     form.addEventListener('submit', function (e) {
@@ -653,14 +656,14 @@ document.addEventListener('click', function (e) {
         f.querySelector('[name="item_name"]').value = editBtn.dataset.name;
         f.querySelector('[name="unit"]').value = editBtn.dataset.unit || '';
         f.querySelector('[name="item_code"]').value = editBtn.dataset.code || '';
-        document.getElementById('item-form-btn-label').textContent = 'Save Changes';
+        document.getElementById('item-form-btn-label').textContent = <?php echo json_encode(t('save_changes', 'Save Changes')); ?>;
         f.querySelector('.stg-cancel-edit').style.display = '';
         f.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
     }
     const delBtn = e.target.closest('.stg-delete-item');
     if (delBtn) {
-        if (!confirm('Remove this item from the active catalogue? Purchase/movement history is kept.')) return;
+        if (!confirm(STG_REMOVE_ITEM_CONFIRM)) return;
         const fd = new FormData();
         fd.append('action', 'delete_item');
         fd.append('csrf_token', STG_CSRF);
@@ -675,7 +678,7 @@ document.querySelectorAll('.stg-cancel-edit').forEach(btn => {
         const f = document.getElementById(this.dataset.form);
         f.reset();
         f.querySelectorAll('input[type="hidden"]').forEach(h => { if (h.name.endsWith('_id')) h.value = ''; });
-        document.getElementById('item-form-btn-label').textContent = 'Add Item';
+        document.getElementById('item-form-btn-label').textContent = <?php echo json_encode(t('add_item', 'Add Item')); ?>;
         this.style.display = 'none';
     });
 });
@@ -697,8 +700,8 @@ function updateStockInTotal() {
     const q = parseFloat(siQty && siQty.value) || 0;
     const p = parseFloat(siPrice && siPrice.value) || 0;
     siTotal.textContent = (q > 0 && p > 0)
-        ? 'Total: $' + (q * p).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-        : 'Total: —';
+        ? STG_TOTAL_LABEL + ': $' + (q * p).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        : STG_TOTAL_LABEL + ': —';
 }
 if (siQty) siQty.addEventListener('input', updateStockInTotal);
 if (siPrice) siPrice.addEventListener('input', updateStockInTotal);

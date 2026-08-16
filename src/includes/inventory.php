@@ -371,17 +371,41 @@ function inventory_run_dynamic(mysqli $conn, string $sql, string $types, array $
 function inventory_request_status_label(string $status): string
 {
     $labels = [
+        'pending' => 'pending',
+        'approved' => 'approved_awaiting_delivery',
+        'rejected' => 'rejected',
+        'fulfilled' => 'delivered',
+    ];
+    if (function_exists('t')) {
+        $key = $labels[$status] ?? null;
+        if ($key) {
+            return t($key, ucfirst(str_replace('_', ' ', $key)));
+        }
+    }
+    $fallback = [
         'pending' => 'Pending',
         'approved' => 'Approved — Awaiting Delivery',
         'rejected' => 'Rejected',
         'fulfilled' => 'Delivered',
     ];
-    return $labels[$status] ?? ucfirst($status);
+    return $fallback[$status] ?? ucfirst($status);
 }
 
 /** Human label + CSS suffix for a priority value. */
 function inventory_priority_label(string $priority): string
 {
+    $labels = [
+        'low' => 'low',
+        'medium' => 'medium',
+        'high' => 'high',
+        'urgent' => 'urgent',
+    ];
+    if (function_exists('t')) {
+        $key = $labels[$priority] ?? null;
+        if ($key) {
+            return t($key, ucfirst($priority));
+        }
+    }
     return ucfirst($priority);
 }
 
@@ -426,12 +450,12 @@ function inventory_stock_status(float $balance): string
 function inventory_location_label(array $row): string
 {
     if (!empty($row['is_project_wide'])) {
-        return '<span class="loc-project-wide">Project-wide</span>';
+        return '<span class="loc-project-wide">' . htmlspecialchars(function_exists('t') ? t('project_wide', 'Project-wide') : 'Project-wide') . '</span>';
     }
     $parts = [];
-    if (!empty($row['building_name']))    { $parts[] = htmlspecialchars($row['building_name']); }
-    if (!empty($row['floor_name']))       { $parts[] = htmlspecialchars($row['floor_name']); }
-    if (!empty($row['apartment_number'])) { $parts[] = 'Apt ' . htmlspecialchars($row['apartment_number']); }
+    if (!empty($row['building_name'])) { $parts[] = htmlspecialchars($row['building_name']); }
+    if (!empty($row['floor_name'])) { $parts[] = htmlspecialchars($row['floor_name']); }
+    if (!empty($row['apartment_number'])) { $parts[] = (function_exists('t') ? t('apt', 'Apt') : 'Apt') . ' ' . htmlspecialchars($row['apartment_number']); }
     return $parts ? implode(' <i class="fas fa-angle-right"></i> ', $parts) : '<span class="loc-none">—</span>';
 }
 

@@ -34,7 +34,7 @@ if (!$canManageHistory && !empty($_SESSION['role_id'])) {
     }
 }
 
-$columnCount = $canManageHistory ? 8 : 7;
+$columnCount = 8;
 
 function normalize_history_work_type_key($key) {
     $k = strtolower(trim((string)$key));
@@ -75,26 +75,33 @@ function parse_gechkari_meta_and_notes($notes) {
     return $meta;
 }
 
-function render_history_actions($source, $id, $entryDate, $engineer, $quantity, $unitPrice, $notes) {
-    $attrs = [
-        'data-entry-source' => $source,
-        'data-entry-id' => (string)$id,
-        'data-entry-date' => (string)$entryDate,
-        'data-entry-engineer' => (string)$engineer,
-        'data-entry-qty' => (string)$quantity,
-        'data-entry-unit-price' => (string)$unitPrice,
-        'data-entry-notes' => (string)$notes,
-    ];
+function render_history_actions($source, $id, $entryDate, $engineer, $quantity, $unitPrice, $notes, bool $canManageHistory, array $printFields) {
+    $printJson = htmlspecialchars(json_encode($printFields, JSON_UNESCAPED_UNICODE), ENT_QUOTES);
+    $html = '<td class="history-actions-cell">';
+    $html .= '<button type="button" class="history-action-btn print-history-btn" title="Print entry" data-print="' . $printJson . '"><i class="fas fa-print"></i></button>';
 
-    $htmlAttrs = '';
-    foreach ($attrs as $name => $value) {
-        $htmlAttrs .= ' ' . $name . '="' . htmlspecialchars($value, ENT_QUOTES) . '"';
+    if ($canManageHistory) {
+        $attrs = [
+            'data-entry-source' => $source,
+            'data-entry-id' => (string)$id,
+            'data-entry-date' => (string)$entryDate,
+            'data-entry-engineer' => (string)$engineer,
+            'data-entry-qty' => (string)$quantity,
+            'data-entry-unit-price' => (string)$unitPrice,
+            'data-entry-notes' => (string)$notes,
+        ];
+
+        $htmlAttrs = '';
+        foreach ($attrs as $name => $value) {
+            $htmlAttrs .= ' ' . $name . '="' . htmlspecialchars($value, ENT_QUOTES) . '"';
+        }
+
+        $html .= '<button type="button" class="history-action-btn edit-history-btn" title="Edit entry"' . $htmlAttrs . '><i class="fas fa-pen"></i></button>';
+        $html .= '<button type="button" class="history-action-btn delete-history-btn" title="Delete entry" data-entry-source="' . htmlspecialchars($source, ENT_QUOTES) . '" data-entry-id="' . (int)$id . '"><i class="fas fa-trash"></i></button>';
     }
 
-    return '<td class="history-actions-cell">'
-        . '<button type="button" class="history-action-btn edit-history-btn" title="Edit entry"' . $htmlAttrs . '><i class="fas fa-pen"></i></button>'
-        . '<button type="button" class="history-action-btn delete-history-btn" title="Delete entry" data-entry-source="' . htmlspecialchars($source, ENT_QUOTES) . '" data-entry-id="' . (int)$id . '"><i class="fas fa-trash"></i></button>'
-        . '</td>';
+    $html .= '</td>';
+    return $html;
 }
 
 $apartment_id = (int)($_GET['apartment_id'] ?? 0);
@@ -177,9 +184,22 @@ if ($work_type_key === 'gechkari') {
         }
         echo '<td>' . $gechStatusCell . '</td>';
         echo '<td class="notes-cell" title="' . $notesEscaped . '">' . $notesEscaped . '</td>';
-        if ($canManageHistory) {
-            echo render_history_actions('gechkari', (int)$row['id'], (string)$row['entry_date'], $engineerFromNotes !== '' ? $engineerFromNotes : ($row['engineer'] ?? ''), (float)$row['quantity'], (float)$row['unit_price'], (string)($meta['notes'] ?? ''));
-        }
+        $gechEngineerForActions = $engineerFromNotes !== '' ? $engineerFromNotes : ($row['engineer'] ?? '');
+        $printFields = [
+            'date' => date('d/m/Y', strtotime($row['entry_date'])),
+            'location' => ($row['building_name'] ?? '—') . ' / ' . ($row['floor_name'] ?? '—') . ' / Apt ' . ($row['apartment_number'] ?? '—'),
+            'workType' => $workTypeName,
+            'subpart' => $subWork,
+            'stakeholder' => $meta['stakeholder'] !== '' ? $meta['stakeholder'] : '—',
+            'engineer' => $gechEngineerForActions !== '' ? $gechEngineerForActions : '—',
+            'quantity' => number_format((float)$row['quantity'], 2) . ' ' . ($meta['metric'] ?: 'm²'),
+            'status' => ucfirst($status),
+            'notes' => $meta['notes'] ?? '',
+            'showPrice' => $canManageHistory,
+            'unitPrice' => $canManageHistory ? (($meta['currency'] ?: 'USD') . ' ' . number_format((float)$row['unit_price'], 2)) : '',
+            'total' => $canManageHistory ? (($meta['currency'] ?: 'USD') . ' ' . number_format((float)$row['quantity'] * (float)$row['unit_price'], 2)) : '',
+        ];
+        echo render_history_actions('gechkari', (int)$row['id'], (string)$row['entry_date'], $gechEngineerForActions, (float)$row['quantity'], (float)$row['unit_price'], (string)($meta['notes'] ?? ''), $canManageHistory, $printFields);
         echo '</tr>';
     }
 
@@ -263,13 +283,11 @@ $historySql = "SELECT e.id, e.work_date AS entry_date, e.engineer_name, e.notes,
 if ($apartment_id > 0) {
     $historySql .= " AND e.apartment_id = ?";
 } else {
-    $historySql .= " AND e.apartment_id = 0";
-    if ($floor_id > 0) {
-        $historySql .= " AND e.floor_id = ?";
-    }
-    if ($building_id > 0) {
-        $historySql .= " AND e.building_id = ?";
-    }
+    // Common area (building/floor set, apartment 0) and project-wide (all
+    // three 0) are both exact matches here — building_id/floor_id are always
+    // bound explicitly so a specific building's common area never mixes with
+    // another building's, or with project-wide entries.
+    $historySql .= " AND e.apartment_id = 0 AND e.floor_id = ? AND e.building_id = ?";
 }
 
 $historySql .= " ORDER BY e.work_date DESC, e.created_at DESC";
@@ -278,15 +296,7 @@ $stmt = $conn->prepare($historySql);
 if ($apartment_id > 0) {
     $stmt->bind_param('si', $work_type_key, $apartment_id);
 } else {
-    if ($floor_id > 0 && $building_id > 0) {
-        $stmt->bind_param('sii', $work_type_key, $floor_id, $building_id);
-    } elseif ($floor_id > 0) {
-        $stmt->bind_param('si', $work_type_key, $floor_id);
-    } elseif ($building_id > 0) {
-        $stmt->bind_param('si', $work_type_key, $building_id);
-    } else {
-        $stmt->bind_param('s', $work_type_key);
-    }
+    $stmt->bind_param('sii', $work_type_key, $floor_id, $building_id);
 }
 $stmt->execute();
 $result = $stmt->get_result();
@@ -306,7 +316,10 @@ while ($row = $result->fetch_assoc()) {
     $currency = $row['currency_type'] ?: 'USD';
     $quantity = number_format((float)$row['quantity'], 2);
     $totalPrice = number_format((float)$row['total_price'], 2);
-    $summary = 'Qty: ' . $quantity . ' ' . $metric . ' | Total: ' . $currency . ' ' . $totalPrice;
+    $summary = 'Qty: ' . $quantity . ' ' . $metric;
+    if ($canManageHistory) {
+        $summary .= ' | Total: ' . $currency . ' ' . $totalPrice;
+    }
     $notesRaw = trim((string)($row['notes'] ?? ''));
     $notes = htmlspecialchars($summary . ($notesRaw !== '' ? ' | ' . $notesRaw : ''));
 
@@ -335,9 +348,21 @@ while ($row = $result->fetch_assoc()) {
     }
     echo '<td>' . $statusCell . $scNote . '</td>';
     echo '<td class="notes-cell" title="' . $notes . '">' . $notes . '</td>';
-    if ($canManageHistory) {
-        echo render_history_actions('generic', (int)$row['id'], (string)$row['entry_date'], (string)($row['engineer_name'] ?? ''), (float)$row['quantity'], (float)$row['unit_price'], $notesRaw);
-    }
+    $printFields = [
+        'date' => date('d/m/Y', strtotime($row['entry_date'])),
+        'location' => ($row['building_name'] ?? '—') . ' / ' . ($row['floor_name'] ?? '—') . ' / Apt ' . ($row['apartment_number'] ?? '—'),
+        'workType' => $workTypeName,
+        'subpart' => $row['subpart_name'] ?: '—',
+        'stakeholder' => '—',
+        'engineer' => $row['engineer_name'] ?: '—',
+        'quantity' => $quantity . ' ' . $metric,
+        'status' => ucfirst($status),
+        'notes' => $notesRaw,
+        'showPrice' => $canManageHistory,
+        'unitPrice' => $canManageHistory ? ($currency . ' ' . number_format((float)$row['unit_price'], 2)) : '',
+        'total' => $canManageHistory ? ($currency . ' ' . $totalPrice) : '',
+    ];
+    echo render_history_actions('generic', (int)$row['id'], (string)$row['entry_date'], (string)($row['engineer_name'] ?? ''), (float)$row['quantity'], (float)$row['unit_price'], $notesRaw, $canManageHistory, $printFields);
     echo '</tr>';
 }
 

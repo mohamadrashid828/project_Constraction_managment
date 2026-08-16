@@ -5,6 +5,7 @@ if (empty($_SESSION['user_id'])) {
     exit;
 }
 require_once '../config.php';
+require_once 'includes/project_settings.php';
 
 $user_id = $_SESSION['user_id'];
 $stmt = $conn->prepare('SELECT p.name FROM permissions p JOIN role_permissions rp ON p.id = rp.permission_id JOIN users u ON rp.role_id = u.role_id WHERE u.id = ?');
@@ -25,6 +26,22 @@ if (!in_array('project_settings', $permissions)) {
 $message = '';
 $message_type = 'success';
 
+function display_work_type_name(string $englishName, ?string $kurdishName = null): string
+{
+    $languageCode = $_SESSION['language'] ?? 'en';
+    $englishValue = trim((string)$englishName);
+    $kurdishValue = trim((string)($kurdishName ?? ''));
+
+    if ($languageCode === 'ckb' && $kurdishValue !== '') {
+        return $kurdishValue;
+    }
+
+    return $englishValue !== '' ? $englishValue : 'Category';
+}
+
+// Apartment type whitelist shared by the add/edit handlers and both <select> dropdowns.
+$apartmentTypeOptions = ['1BR', '2BR', '3BR', '4BR', 'Penthouse', 'Shop', 'Common Area'];
+
 // Dynamic work-type configuration tables
 $conn->query("CREATE TABLE IF NOT EXISTS project_work_types (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -43,6 +60,10 @@ $conn->query("CREATE TABLE IF NOT EXISTS project_work_types (
 // Self-heal the Kurdish-name column on pre-existing installs.
 if ($conn->query("SHOW COLUMNS FROM project_work_types LIKE 'work_type_name_ku'")->num_rows === 0) {
     $conn->query("ALTER TABLE project_work_types ADD COLUMN work_type_name_ku VARCHAR(120) NULL AFTER work_type_name");
+}
+// Self-heal the category image column on pre-existing installs.
+if ($conn->query("SHOW COLUMNS FROM project_work_types LIKE 'image_file'")->num_rows === 0) {
+    $conn->query("ALTER TABLE project_work_types ADD COLUMN image_file VARCHAR(255) NULL AFTER work_type_name_ku");
 }
 
 $conn->query("CREATE TABLE IF NOT EXISTS project_work_type_fields (
@@ -76,6 +97,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $scope_level = 'apartment';
             $pricing_mode = 'per_unit';
 
+            $imageResult = store_category_image($_FILES['category_image'] ?? []);
+
             // The English name must be unique among active categories. Checked on
             // the name itself (case-insensitive via the column collation) rather
             // than the derived key, since the key slug can differ for names that
@@ -98,35 +121,109 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $stmt->close();
 
-            if ($nameTaken || $existingActive) {
-                $message = 'A category named "' . $work_type_name . '" already exists.';
+            if (!$imageResult['ok']) {
+                $message = $imageResult['message'];
+                $message_type = 'error';
+            } elseif ($nameTaken || $existingActive) {
+                // The record won't be saved after all — don't leave the just-uploaded image orphaned on disk.
+                if ($imageResult['filename'] !== null) {
+                    @unlink(category_image_dir() . $imageResult['filename']);
+                }
+                $message = t('category_duplicate', 'A category named "{name}" already exists.', ['{name}' => $work_type_name]);
                 $message_type = 'error';
             } elseif ($existingId > 0) {
                 // Re-adding a previously deleted category restores it (and its Kurdish name).
-                $stmt = $conn->prepare("UPDATE project_work_types SET work_type_name = ?, work_type_name_ku = ?, is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
-                $stmt->bind_param("ssi", $work_type_name, $work_type_name_ku, $existingId);
+                // Only touch image_file when a new image was actually uploaded, so the
+                // previous image (if any) survives a restore with no new file chosen.
+                if ($imageResult['filename'] !== null) {
+                    $stmt = $conn->prepare("UPDATE project_work_types SET work_type_name = ?, work_type_name_ku = ?, image_file = ?, is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+                    $stmt->bind_param("sssi", $work_type_name, $work_type_name_ku, $imageResult['filename'], $existingId);
+                } else {
+                    $stmt = $conn->prepare("UPDATE project_work_types SET work_type_name = ?, work_type_name_ku = ?, is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+                    $stmt->bind_param("ssi", $work_type_name, $work_type_name_ku, $existingId);
+                }
                 if ($stmt->execute()) {
-                    $message = 'Category restored successfully!';
+                    $message = t('category_restored', 'Category restored successfully!');
                     $message_type = 'success';
                 } else {
-                    $message = 'Error restoring category.';
+                    $message = t('category_restore_error', 'Error restoring category.');
                     $message_type = 'error';
                 }
                 $stmt->close();
             } else {
-                $stmt = $conn->prepare("INSERT INTO project_work_types (work_type_name, work_type_name_ku, work_type_key, quantity_unit, scope_level, pricing_mode, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)");
-                $stmt->bind_param("ssssssi", $work_type_name, $work_type_name_ku, $work_type_key, $quantity_unit, $scope_level, $pricing_mode, $user_id);
+                $stmt = $conn->prepare("INSERT INTO project_work_types (work_type_name, work_type_name_ku, work_type_key, image_file, quantity_unit, scope_level, pricing_mode, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->bind_param("sssssssi", $work_type_name, $work_type_name_ku, $work_type_key, $imageResult['filename'], $quantity_unit, $scope_level, $pricing_mode, $user_id);
                 if ($stmt->execute()) {
-                    $message = 'Category created successfully!';
+                    $message = t('category_created', 'Category created successfully!');
                     $message_type = 'success';
                 } else {
-                    $message = 'Error creating category (name may already exist).';
+                    $message = t('category_create_error', 'Error creating category (name may already exist).');
                     $message_type = 'error';
                 }
                 $stmt->close();
             }
         } else {
-            $message = 'Please enter a category name.';
+            $message = t('category_name_required', 'Please enter a category name.');
+            $message_type = 'error';
+        }
+    }
+
+    if (isset($_POST['update_work_type'])) {
+        $work_type_id = (int)($_POST['work_type_id'] ?? 0);
+        $work_type_name = trim($_POST['work_type_name'] ?? '');
+        $work_type_name_ku = trim($_POST['work_type_name_ku'] ?? '');
+
+        if ($work_type_id > 0 && $work_type_name) {
+            // work_type_key is intentionally never changed here — project_work_entries
+            // and project_stakeholders reference categories by key, so renaming a
+            // category must not disturb records already saved under its old key.
+            $nameStmt = $conn->prepare("SELECT id FROM project_work_types WHERE work_type_name = ? AND is_active = 1 AND id != ? LIMIT 1");
+            $nameStmt->bind_param("si", $work_type_name, $work_type_id);
+            $nameStmt->execute();
+            $nameTaken = (bool)$nameStmt->get_result()->fetch_assoc();
+            $nameStmt->close();
+
+            $imageResult = store_category_image($_FILES['category_image'] ?? []);
+
+            if (!$imageResult['ok']) {
+                $message = $imageResult['message'];
+                $message_type = 'error';
+            } elseif ($nameTaken) {
+                if ($imageResult['filename'] !== null) {
+                    @unlink(category_image_dir() . $imageResult['filename']);
+                }
+                $message = t('category_duplicate', 'A category named "{name}" already exists.', ['{name}' => $work_type_name]);
+                $message_type = 'error';
+            } else {
+                $oldImageStmt = $conn->prepare("SELECT image_file FROM project_work_types WHERE id = ?");
+                $oldImageStmt->bind_param("i", $work_type_id);
+                $oldImageStmt->execute();
+                $oldImageRow = $oldImageStmt->get_result()->fetch_assoc();
+                $oldImageStmt->close();
+                $oldImageFile = $oldImageRow ? $oldImageRow['image_file'] : null;
+
+                if ($imageResult['filename'] !== null) {
+                    $stmt = $conn->prepare("UPDATE project_work_types SET work_type_name = ?, work_type_name_ku = ?, image_file = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+                    $stmt->bind_param("sssi", $work_type_name, $work_type_name_ku, $imageResult['filename'], $work_type_id);
+                } else {
+                    $stmt = $conn->prepare("UPDATE project_work_types SET work_type_name = ?, work_type_name_ku = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+                    $stmt->bind_param("ssi", $work_type_name, $work_type_name_ku, $work_type_id);
+                }
+                if ($stmt->execute()) {
+                    // Replaced by the new upload — safe to remove now that the update committed.
+                    if ($imageResult['filename'] !== null && !empty($oldImageFile)) {
+                        @unlink(category_image_dir() . $oldImageFile);
+                    }
+                    $message = t('category_updated', 'Category updated successfully!');
+                    $message_type = 'success';
+                } else {
+                    $message = t('category_update_error', 'Error updating category.');
+                    $message_type = 'error';
+                }
+                $stmt->close();
+            }
+        } else {
+            $message = t('category_name_required', 'Please enter a category name.');
             $message_type = 'error';
         }
     }
@@ -142,10 +239,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $conn->prepare("UPDATE project_work_types SET is_active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
             $stmt->bind_param("i", $work_type_id);
             if ($stmt->execute()) {
-                $message = 'Category deleted successfully!';
+                $message = t('category_deleted', 'Category deleted successfully!');
                 $message_type = 'success';
             } else {
-                $message = 'Error deleting category.';
+                $message = t('category_delete_error', 'Error deleting category.');
                 $message_type = 'error';
             }
             $stmt->close();
@@ -166,16 +263,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $dup->close();
 
             if ($isDuplicate) {
-                $message = 'A building named "' . $building_name . '" already exists.';
+                $message = t('building_duplicate', 'A building named "{name}" already exists.', ['{name}' => $building_name]);
                 $message_type = 'error';
             } else {
                 $stmt = $conn->prepare("INSERT INTO buildings (building_name, total_area, comments) VALUES (?, ?, ?)");
                 $stmt->bind_param("sds", $building_name, $total_area, $comments);
                 if ($stmt->execute()) {
-                    $message = 'Building created successfully!';
+                    $message = t('building_created', 'Building created successfully!');
                     $message_type = 'success';
                 } else {
-                    $message = 'Error creating building.';
+                    $message = t('building_create_error', 'Error creating building.');
                     $message_type = 'error';
                 }
                 $stmt->close();
@@ -198,16 +295,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $dup->close();
 
             if ($isDuplicate) {
-                $message = 'A building named "' . $building_name . '" already exists.';
+                $message = t('building_duplicate', 'A building named "{name}" already exists.', ['{name}' => $building_name]);
                 $message_type = 'error';
             } else {
                 $stmt = $conn->prepare("UPDATE buildings SET building_name = ?, total_area = ?, comments = ? WHERE id = ?");
                 $stmt->bind_param("sdsi", $building_name, $total_area, $comments, $building_id);
                 if ($stmt->execute()) {
-                    $message = 'Building updated successfully!';
+                    $message = t('building_updated', 'Building updated successfully!');
                     $message_type = 'success';
                 } else {
-                    $message = 'Error updating building.';
+                    $message = t('building_update_error', 'Error updating building.');
                     $message_type = 'error';
                 }
                 $stmt->close();
@@ -222,10 +319,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $conn->prepare("DELETE FROM buildings WHERE id = ?");
             $stmt->bind_param("i", $building_id);
             if ($stmt->execute()) {
-                $message = 'Building deleted successfully!';
+                $message = t('building_deleted', 'Building deleted successfully!');
                 $message_type = 'success';
             } else {
-                $message = 'Error deleting building.';
+                $message = t('building_delete_error', 'Error deleting building.');
                 $message_type = 'error';
             }
             $stmt->close();
@@ -250,16 +347,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $dup->close();
 
             if ($isDuplicate) {
-                $message = 'A floor named "' . $floor_name . '" already exists in this building.';
+                $message = t('floor_duplicate', 'A floor named "{name}" already exists in this building.', ['{name}' => $floor_name]);
                 $message_type = 'error';
             } else {
                 $stmt = $conn->prepare("INSERT INTO floors (building_id, floor_number, floor_name, area) VALUES (?, ?, ?, ?)");
                 $stmt->bind_param("iisi", $building_id, $floor_number, $floor_name, $floor_area);
                 if ($stmt->execute()) {
-                    $message = 'Floor created successfully!';
+                    $message = t('floor_created', 'Floor created successfully!');
                     $message_type = 'success';
                 } else {
-                    $message = 'Error creating floor.';
+                    $message = t('floor_create_error', 'Error creating floor.');
                     $message_type = 'error';
                 }
                 $stmt->close();
@@ -286,16 +383,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $dup->close();
 
             if ($isDuplicate) {
-                $message = 'A floor named "' . $floor_name . '" already exists in this building.';
+                $message = t('floor_duplicate', 'A floor named "{name}" already exists in this building.', ['{name}' => $floor_name]);
                 $message_type = 'error';
             } else {
                 $stmt = $conn->prepare("UPDATE floors SET floor_number = ?, floor_name = ?, area = ? WHERE id = ?");
                 $stmt->bind_param("isdi", $floor_number, $floor_name, $floor_area, $floor_id);
                 if ($stmt->execute()) {
-                    $message = 'Floor updated successfully!';
+                    $message = t('floor_updated', 'Floor updated successfully!');
                     $message_type = 'success';
                 } else {
-                    $message = 'Error updating floor.';
+                    $message = t('floor_update_error', 'Error updating floor.');
                     $message_type = 'error';
                 }
                 $stmt->close();
@@ -310,10 +407,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $conn->prepare("DELETE FROM floors WHERE id = ?");
             $stmt->bind_param("i", $floor_id);
             if ($stmt->execute()) {
-                $message = 'Floor deleted successfully!';
+                $message = t('floor_deleted', 'Floor deleted successfully!');
                 $message_type = 'success';
             } else {
-                $message = 'Error deleting floor.';
+                $message = t('floor_delete_error', 'Error deleting floor.');
                 $message_type = 'error';
             }
             $stmt->close();
@@ -326,7 +423,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $apartment_type = trim($_POST['apartment_type'] ?? '');
         // Server-side whitelist matching the UI dropdown; an invalid value falls
         // through the existing truthiness guard below and is rejected.
-        if (!in_array($apartment_type, ['1BR', '2BR', '3BR', '4BR', 'Penthouse'], true)) {
+        if (!in_array($apartment_type, $apartmentTypeOptions, true)) {
             $apartment_type = '';
         }
         $apartment_area = (float)$_POST['apartment_area'];
@@ -340,16 +437,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $dup->close();
 
             if ($isDuplicate) {
-                $message = 'Apartment "' . $apartment_number . '" already exists on this floor.';
+                $message = t('apartment_duplicate', 'Apartment "{number}" already exists on this floor.', ['{number}' => $apartment_number]);
                 $message_type = 'error';
             } else {
                 $stmt = $conn->prepare("INSERT INTO apartments (floor_id, building_id, apartment_number, apartment_type, area_sqm) VALUES (?, (SELECT building_id FROM floors WHERE id = ?), ?, ?, ?)");
                 $stmt->bind_param("iissd", $floor_id, $floor_id, $apartment_number, $apartment_type, $apartment_area);
                 if ($stmt->execute()) {
-                    $message = 'Apartment created successfully!';
+                    $message = t('apartment_created', 'Apartment created successfully!');
                     $message_type = 'success';
                 } else {
-                    $message = 'Error creating apartment.';
+                    $message = t('apartment_create_error', 'Error creating apartment.');
                     $message_type = 'error';
                 }
                 $stmt->close();
@@ -363,7 +460,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $apartment_type = trim($_POST['apartment_type'] ?? '');
         // Server-side whitelist matching the UI dropdown; an invalid value falls
         // through the existing truthiness guard below and is rejected.
-        if (!in_array($apartment_type, ['1BR', '2BR', '3BR', '4BR', 'Penthouse'], true)) {
+        if (!in_array($apartment_type, $apartmentTypeOptions, true)) {
             $apartment_type = '';
         }
         $apartment_area = (float)$_POST['apartment_area'];
@@ -379,16 +476,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $dup->close();
 
             if ($isDuplicate) {
-                $message = 'Apartment "' . $apartment_number . '" already exists on this floor.';
+                $message = t('apartment_duplicate', 'Apartment "{number}" already exists on this floor.', ['{number}' => $apartment_number]);
                 $message_type = 'error';
             } else {
                 $stmt = $conn->prepare("UPDATE apartments SET apartment_number = ?, apartment_type = ?, area_sqm = ? WHERE id = ?");
                 $stmt->bind_param("ssdi", $apartment_number, $apartment_type, $apartment_area, $apartment_id);
                 if ($stmt->execute()) {
-                    $message = 'Apartment updated successfully!';
+                    $message = t('apartment_updated', 'Apartment updated successfully!');
                     $message_type = 'success';
                 } else {
-                    $message = 'Error updating apartment.';
+                    $message = t('apartment_update_error', 'Error updating apartment.');
                     $message_type = 'error';
                 }
                 $stmt->close();
@@ -403,10 +500,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $conn->prepare("DELETE FROM apartments WHERE id = ?");
             $stmt->bind_param("i", $apartment_id);
             if ($stmt->execute()) {
-                $message = 'Apartment deleted successfully!';
+                $message = t('apartment_deleted', 'Apartment deleted successfully!');
                 $message_type = 'success';
             } else {
-                $message = 'Error deleting apartment.';
+                $message = t('apartment_delete_error', 'Error deleting apartment.');
                 $message_type = 'error';
             }
             $stmt->close();
@@ -423,7 +520,7 @@ $work_types = $conn->query("SELECT *
 $buildings = $conn->query("SELECT * FROM buildings ORDER BY building_name");
 ?>
 <?php
-$pageTitle = 'Project Settings - Green World Towers';
+$pageTitle = t('project_settings', 'Project Settings') . ' - Green World Towers';
 $pageCss = 'project_settings.css';
 $activePage = 'project-settings';
 require_once 'partials/header.php';
@@ -436,9 +533,9 @@ require_once 'partials/sidebar.php';
         <!-- Main Content -->
         <main class="main-content">
             <header class="page-header">
-                <h1><i class="fas fa-cog"></i> Project Settings</h1>
+                <h1><i class="fas fa-cog"></i> <?php echo htmlspecialchars(t('project_settings', 'Project Settings')); ?></h1>
                 <div class="user-info">
-                    <span>Welcome, <?php echo htmlspecialchars($_SESSION['username']); ?></span>
+                    <span><?php echo htmlspecialchars(t('welcome', 'Welcome')); ?>, <?php echo htmlspecialchars($_SESSION['username']); ?></span>
                 </div>
             </header>
 
@@ -459,23 +556,23 @@ require_once 'partials/sidebar.php';
                 <div class="settings-panel">
                     <div class="panel-card">
                         <div class="card-header">
-                            <h2><i class="fas fa-plus-circle"></i> Add New Building</h2>
+                            <h2><i class="fas fa-plus-circle"></i> <?php echo htmlspecialchars(t('add_new_building', 'Add New Building')); ?></h2>
                         </div>
                         <form method="POST" class="settings-form ajax-add-building">
                             <div class="form-group">
-                                <label for="building_name">Building Name</label>
-                                <input type="text" name="building_name" id="building_name" required placeholder="e.g., Tower C, Building B">
+                                <label for="building_name"><?php echo htmlspecialchars(t('building_name', 'Building Name')); ?></label>
+                                <input type="text" name="building_name" id="building_name" required placeholder="<?php echo htmlspecialchars(t('building_name_example', 'e.g., Tower C, Building B')); ?>">
                             </div>
                             <div class="form-group">
-                                <label for="total_area">Total Area (sqm)</label>
-                                <input type="number" name="total_area" id="total_area" min="0" step="0.01" required placeholder="e.g., 2500.50">
+                                <label for="total_area"><?php echo htmlspecialchars(t('total_area_sqm', 'Total Area (sqm)')); ?></label>
+                                <input type="number" name="total_area" id="total_area" min="0" step="0.01" required placeholder="<?php echo htmlspecialchars(t('total_area_example', 'e.g., 2500.50')); ?>">
                             </div>
                             <div class="form-group">
-                                <label for="comments">Comments (Optional)</label>
-                                <textarea name="comments" id="comments" rows="3" placeholder="Additional notes about the building..."></textarea>
+                                <label for="comments"><?php echo htmlspecialchars(t('comments_optional', 'Comments (Optional)')); ?></label>
+                                <textarea name="comments" id="comments" rows="3" placeholder="<?php echo htmlspecialchars(t('building_notes', 'Additional notes about the building...')); ?>"></textarea>
                             </div>
                             <button type="submit" name="add_building" class="btn btn-primary btn-block">
-                                <i class="fas fa-plus"></i> Add Building
+                                <i class="fas fa-plus"></i> <?php echo htmlspecialchars(t('add_building', 'Add Building')); ?>
                             </button>
                         </form>
                     </div>
@@ -491,7 +588,7 @@ require_once 'partials/sidebar.php';
                         ?>
                             <div class="empty-state">
                                 <i class="fas fa-inbox"></i>
-                                <p>No buildings yet. Create one to get started!</p>
+                                <p><?php echo htmlspecialchars(t('no_buildings', 'No buildings yet. Create one to get started!')); ?></p>
                             </div>
                         <?php else: ?>
                             <?php while ($building = $buildings->fetch_assoc()): ?>
@@ -521,15 +618,15 @@ require_once 'partials/sidebar.php';
                                     <div class="building-content" id="building-<?php echo $building['id']; ?>" style="display: none;">
                                         <!-- Floors Section -->
                                         <div class="building-section">
-                                            <h4><i class="fas fa-layer-group"></i> Floors</h4>
+                                            <h4><i class="fas fa-layer-group"></i> <?php echo htmlspecialchars(t('floors', 'Floors')); ?></h4>
                                             <div class="add-floor-form">
                                                 <form method="POST" class="inline-form ajax-add-floor" data-building-id="<?php echo $building['id']; ?>">
                                                     <input type="hidden" name="building_id" value="<?php echo $building['id']; ?>">
-                                                    <input type="number" name="floor_number" placeholder="Floor # (e.g. -1 for parking)" step="1" required>
-                                                    <input type="text" name="floor_name" placeholder="Floor name" required>
-                                                    <input type="number" name="floor_area" placeholder="Area (sqft)" step="0.01" min="0" required>
+                                                    <input type="number" name="floor_number" placeholder="<?php echo htmlspecialchars(t('floor_number_placeholder', 'Floor # (e.g. -1 for parking)')); ?>" step="1" required>
+                                                    <input type="text" name="floor_name" placeholder="<?php echo htmlspecialchars(t('floor_name', 'Floor name')); ?>" required>
+                                                    <input type="number" name="floor_area" placeholder="<?php echo htmlspecialchars(t('floor_area_sqft', 'Area (sqft)')); ?>" step="0.01" min="0" required>
                                                     <button type="submit" name="add_floor" class="btn btn-sm btn-primary">
-                                                        <i class="fas fa-plus"></i> Add Floor
+                                                        <i class="fas fa-plus"></i> <?php echo htmlspecialchars(t('add_floor', 'Add Floor')); ?>
                                                     </button>
                                                 </form>
                                             </div>
@@ -566,24 +663,22 @@ require_once 'partials/sidebar.php';
                                                             <!-- Apartments Section -->
                                                             <div class="apartments-section">
                                                                 <div class="apartments-header">
-                                                                    <h5>Apartments</h5>
+                                                                    <h5><?php echo htmlspecialchars(t('apartments', 'Apartments')); ?></h5>
                                                                 </div>
 
                                                                 <div class="add-apartment-form">
                                                                     <form class="inline-form ajax-add-apartment" data-floor-id="<?php echo $floor['id']; ?>">
                                                                         <input type="hidden" name="floor_id" value="<?php echo $floor['id']; ?>">
-                                                                        <input type="text" name="apartment_number" placeholder="Apt # (e.g., 101, A1)" required>
+                                                                        <input type="text" name="apartment_number" placeholder="<?php echo htmlspecialchars(t('apartment_number_placeholder', 'Apt # (e.g., 101, A1)')); ?>" required>
                                                                         <select name="apartment_type" required>
-                                                                            <option value="">Type</option>
-                                                                            <option value="1BR">1BR</option>
-                                                                            <option value="2BR">2BR</option>
-                                                                            <option value="3BR">3BR</option>
-                                                                            <option value="4BR">4BR</option>
-                                                                            <option value="Penthouse">Penthouse</option>
+                                                                            <option value=""><?php echo htmlspecialchars(t('type', 'Type')); ?></option>
+                                                                            <?php foreach ($apartmentTypeOptions as $aptTypeOption): ?>
+                                                                                <option value="<?php echo htmlspecialchars($aptTypeOption); ?>"><?php echo htmlspecialchars($aptTypeOption); ?></option>
+                                                                            <?php endforeach; ?>
                                                                         </select>
-                                                                        <input type="number" name="apartment_area" placeholder="Area (sqm)" step="0.01" min="0" required>
+                                                                        <input type="number" name="apartment_area" placeholder="<?php echo htmlspecialchars(t('area_sqm', 'Area (sqm)')); ?>" step="0.01" min="0" required>
                                                                         <button type="submit" class="btn btn-sm btn-success">
-                                                                            <i class="fas fa-plus"></i> Add
+                                                                            <i class="fas fa-plus"></i> <?php echo htmlspecialchars(t('add', 'Add')); ?>
                                                                         </button>
                                                                     </form>
                                                                 </div>
@@ -597,7 +692,7 @@ require_once 'partials/sidebar.php';
 
                                                                     if ($apts_result->num_rows === 0):
                                                                     ?>
-                                                                        <p class="empty-text">No apartments yet</p>
+                                                                        <p class="empty-text"><?php echo htmlspecialchars(t('no_apartments', 'No apartments yet')); ?></p>
                                                                     <?php else: ?>
                                                                         <?php while ($apt = $apts_result->fetch_assoc()): ?>
                                                                             <div class="apartment-badge">
@@ -638,19 +733,23 @@ require_once 'partials/sidebar.php';
                 <div class="settings-panel">
                     <div class="panel-card">
                         <div class="card-header">
-                            <h2><i class="fas fa-layer-group"></i> Add Work Category</h2>
+                            <h2><i class="fas fa-layer-group"></i> <?php echo htmlspecialchars(t('add_work_category', 'Add Work Category')); ?></h2>
                         </div>
-                        <form method="POST" class="settings-form ajax-work-type-form">
+                        <form method="POST" class="settings-form ajax-work-type-form" enctype="multipart/form-data">
                             <div class="form-group">
-                                <label for="work_type_name">Category Name (English)</label>
-                                <input type="text" name="work_type_name" id="work_type_name" required placeholder="e.g., Paint, Gechkari, Electrical">
+                                <label for="work_type_name"><?php echo htmlspecialchars(t('category_name_english', 'Category Name (English)')); ?></label>
+                                <input type="text" name="work_type_name" id="work_type_name" required placeholder="<?php echo htmlspecialchars(t('category_name_example', 'e.g., Paint, Gechkari, Electrical')); ?>">
                             </div>
                             <div class="form-group">
-                                <label for="work_type_name_ku">Category Name (Kurdish)</label>
-                                <input type="text" name="work_type_name_ku" id="work_type_name_ku" dir="rtl" placeholder="ناوی جۆری کار">
+                                <label for="work_type_name_ku"><?php echo htmlspecialchars(t('category_name_kurdish', 'Category Name (Kurdish)')); ?></label>
+                                <input type="text" name="work_type_name_ku" id="work_type_name_ku" dir="rtl" placeholder="<?php echo htmlspecialchars(t('category_name_kurdish_example', 'e.g., ناوی کتێبەڕاوی کار')); ?>">
+                            </div>
+                            <div class="form-group">
+                                <label for="category_image"><?php echo htmlspecialchars(t('category_image_optional', 'Category Image (optional)')); ?></label>
+                                <input type="file" name="category_image" id="category_image" accept="image/png,image/jpeg,image/gif,image/webp">
                             </div>
                             <button type="submit" name="save_work_type" class="btn btn-primary btn-block">
-                                <i class="fas fa-plus"></i> Add Category
+                                <i class="fas fa-plus"></i> <?php echo htmlspecialchars(t('add_category', 'Add Category')); ?>
                             </button>
                         </form>
                     </div>
@@ -659,36 +758,48 @@ require_once 'partials/sidebar.php';
                 <div class="buildings-panel">
                     <?php $workTypesCount = ($work_types && isset($work_types->num_rows)) ? (int)$work_types->num_rows : 0; ?>
                     <div class="work-categories-head">
-                        <h3><i class="fas fa-th-large"></i> All Categories</h3>
-                        <span class="work-categories-count"><?php echo $workTypesCount; ?> total</span>
+                        <h3><i class="fas fa-th-large"></i> <?php echo htmlspecialchars(t('all_categories', 'All Categories')); ?></h3>
+                        <span class="work-categories-count"><?php echo $workTypesCount; ?> <?php echo htmlspecialchars(t('total', 'total')); ?></span>
                     </div>
                     <div class="buildings-list">
                         <?php if (!$work_types || $work_types->num_rows === 0): ?>
                             <div class="empty-state">
                                 <i class="fas fa-inbox"></i>
-                                <p>No categories yet. Add one to get started.</p>
+                                <p><?php echo htmlspecialchars(t('no_categories', 'No categories yet. Add one to get started.')); ?></p>
                             </div>
                         <?php else: ?>
                             <?php while ($wt = $work_types->fetch_assoc()): ?>
                                 <div class="building-card work-type-card">
                                     <div class="building-header work-type-header">
                                         <div class="work-type-card-content">
-                                            <div class="work-type-top-row">
-                                                <span class="work-type-category-chip"><i class="fas fa-layer-group"></i> Category</span>
-                                                <div class="building-actions">
-                                                    <form method="POST" class="ajax-delete-work-type-form">
-                                                        <input type="hidden" name="work_type_id" value="<?php echo (int)$wt['id']; ?>">
-                                                        <button type="submit" name="delete_work_type" class="action-btn delete-btn" title="Delete Category">
-                                                            <i class="fas fa-trash"></i>
-                                                        </button>
-                                                    </form>
-                                                </div>
+                                            <div class="work-type-thumb">
+                                                <?php if (!empty($wt['image_file'])): ?>
+                                                    <img src="category_image.php?key=<?php echo urlencode($wt['work_type_key']); ?>" alt="">
+                                                <?php else: ?>
+                                                    <i class="fas fa-layer-group"></i>
+                                                <?php endif; ?>
                                             </div>
-                                            <h3 class="work-type-title"><?php echo htmlspecialchars($wt['work_type_name']); ?></h3>
-                                            <?php if (!empty($wt['work_type_name_ku'])): ?>
-                                                <p class="work-type-name-ku" dir="rtl"><i class="fas fa-language"></i> <?php echo htmlspecialchars($wt['work_type_name_ku']); ?></p>
-                                            <?php endif; ?>
-                                            <p class="work-type-key"><i class="fas fa-key"></i> <?php echo htmlspecialchars($wt['work_type_key']); ?></p>
+                                            <div class="work-type-info">
+                                                <div class="work-type-top-row">
+                                                    <span class="work-type-category-chip"><i class="fas fa-layer-group"></i> <?php echo htmlspecialchars(t('category', 'Category')); ?></span>
+                                                    <div class="building-actions">
+                                                        <button type="button" class="action-btn edit-btn" title="Edit Category" onclick="editWorkType(<?php echo (int)$wt['id']; ?>, <?php echo htmlspecialchars(json_encode($wt['work_type_name']), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($wt['work_type_name_ku'] ?? ''), ENT_QUOTES); ?>, <?php echo htmlspecialchars(json_encode($wt['work_type_key']), ENT_QUOTES); ?>, <?php echo !empty($wt['image_file']) ? 'true' : 'false'; ?>)">
+                                                            <i class="fas fa-edit"></i>
+                                                        </button>
+                                                        <form method="POST" class="ajax-delete-work-type-form">
+                                                            <input type="hidden" name="work_type_id" value="<?php echo (int)$wt['id']; ?>">
+                                                            <button type="submit" name="delete_work_type" class="action-btn delete-btn" title="Delete Category">
+                                                                <i class="fas fa-trash"></i>
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                                <h3 class="work-type-title"><?php echo htmlspecialchars(display_work_type_name($wt['work_type_name'], $wt['work_type_name_ku'] ?? '')); ?></h3>
+                                                <?php if (!empty($wt['work_type_name_ku']) && ($_SESSION['language'] ?? 'en') === 'ckb'): ?>
+                                                    <p class="work-type-name-ku" dir="rtl"><i class="fas fa-language"></i> <?php echo htmlspecialchars($wt['work_type_name_ku']); ?></p>
+                                                <?php endif; ?>
+                                                <p class="work-type-key"><i class="fas fa-key"></i> <?php echo htmlspecialchars($wt['work_type_key']); ?></p>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -703,7 +814,7 @@ require_once 'partials/sidebar.php';
                 <div class="stat-card">
                     <div class="stat-icon"><i class="fas fa-building"></i></div>
                     <div class="stat-content">
-                        <div class="stat-label">Total Buildings</div>
+                        <div class="stat-label"><?php echo htmlspecialchars(t('total_buildings', 'Total Buildings')); ?></div>
                         <div class="stat-value">
                             <?php
                             $count = $conn->query("SELECT COUNT(*) as count FROM buildings");
@@ -716,7 +827,7 @@ require_once 'partials/sidebar.php';
                 <div class="stat-card">
                     <div class="stat-icon"><i class="fas fa-layer-group"></i></div>
                     <div class="stat-content">
-                        <div class="stat-label">Total Floors</div>
+                        <div class="stat-label"><?php echo htmlspecialchars(t('total_floors', 'Total Floors')); ?></div>
                         <div class="stat-value">
                             <?php
                             $count = $conn->query("SELECT COUNT(*) as count FROM floors");
@@ -729,7 +840,7 @@ require_once 'partials/sidebar.php';
                 <div class="stat-card">
                     <div class="stat-icon"><i class="fas fa-door-open"></i></div>
                     <div class="stat-content">
-                        <div class="stat-label">Total Apartments</div>
+                        <div class="stat-label"><?php echo htmlspecialchars(t('total_apartments', 'Total Apartments')); ?></div>
                         <div class="stat-value">
                             <?php
                             $count = $conn->query("SELECT COUNT(*) as count FROM apartments");
@@ -753,8 +864,16 @@ require_once 'partials/sidebar.php';
             const current = document.getElementById(id);
             const next = doc.getElementById(id);
             if (current && next) {
+                if (window.translateStaticUi) window.translateStaticUi(next);
                 current.outerHTML = next.outerHTML;
             }
+        }
+
+        function psT(key, fallback, replacements = {}) {
+            const text = (window.appTranslations && window.appTranslations[key]) || fallback || key;
+            return Object.keys(replacements).reduce(function (result, name) {
+                return result.replace(new RegExp('\\{' + name + '\\}', 'g'), replacements[name]);
+            }, text);
         }
 
         // Refresh the server-rendered success/error message from an AJAX response.
@@ -780,7 +899,7 @@ require_once 'partials/sidebar.php';
         }
 
         function deleteBuilding(id, name) {
-            if (!confirm('Are you sure you want to delete building "' + name + '"? This will also delete all floors and apartments in this building.')) {
+            if (!confirm(psT('delete_building_confirm', 'Are you sure you want to delete building "{name}"? This will also delete all floors and apartments in this building.', { name: name }))) {
                 return;
             }
 
@@ -811,7 +930,7 @@ require_once 'partials/sidebar.php';
         }
 
         function deleteFloor(id, name, buildingId) {
-            if (!confirm('Are you sure you want to delete floor "' + name + '"? This will also delete all apartments on this floor.')) {
+            if (!confirm(psT('delete_floor_confirm', 'Are you sure you want to delete floor "{name}"? This will also delete all apartments on this floor.', { name: name }))) {
                 return;
             }
             const formData = new FormData();
@@ -840,8 +959,28 @@ require_once 'partials/sidebar.php';
             document.getElementById('edit-apartment-form').reset();
         }
 
+        function editWorkType(id, name, nameKu, key, hasImage) {
+            document.getElementById('edit_work_type_id').value = id;
+            document.getElementById('edit_work_type_name').value = name;
+            document.getElementById('edit_work_type_name_ku').value = nameKu;
+            const preview = document.getElementById('edit_work_type_current_image');
+            if (hasImage) {
+                preview.src = 'category_image.php?key=' + encodeURIComponent(key);
+                preview.style.display = 'inline-block';
+            } else {
+                preview.removeAttribute('src');
+                preview.style.display = 'none';
+            }
+            document.getElementById('edit-work-type-modal').style.display = 'flex';
+        }
+
+        function closeEditWorkTypeModal() {
+            document.getElementById('edit-work-type-modal').style.display = 'none';
+            document.getElementById('edit-work-type-form').reset();
+        }
+
         function deleteApartment(id, number, floorId) {
-            if (!confirm('Are you sure you want to delete apartment "' + number + '"?')) {
+            if (!confirm(psT('delete_apartment_confirm', 'Are you sure you want to delete apartment "{number}"?', { number: number }))) {
                 return;
             }
             const formData = new FormData();
@@ -944,7 +1083,7 @@ require_once 'partials/sidebar.php';
 
             $(document).on('submit', '.ajax-delete-work-type-form', function(e) {
                 e.preventDefault();
-                if (!window.confirm('Delete this category?')) {
+                if (!window.confirm(psT('delete_category_confirm', 'Delete this category?'))) {
                     return;
                 }
                 const formData = new FormData(this);
@@ -1007,6 +1146,21 @@ require_once 'partials/sidebar.php';
                         const doc = parseDoc(html);
                         replaceById('apartments-grid-' + floorId, doc);
                         closeEditApartmentModal();
+                    });
+            });
+
+            document.getElementById('edit-work-type-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                formData.append('update_work_type', '1');
+
+                fetch(window.location.href, { method: 'POST', body: formData })
+                    .then(res => res.text())
+                    .then(html => {
+                        const doc = parseDoc(html);
+                        replaceById('work-types-settings-section', doc);
+                        showAlert(doc);
+                        closeEditWorkTypeModal();
                     });
             });
         });
@@ -1088,11 +1242,9 @@ require_once 'partials/sidebar.php';
                 <div style="margin-bottom: 20px;">
                     <label for="edit_apartment_type" style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;">Apartment Type</label>
                     <select name="apartment_type" id="edit_apartment_type" required style="width: 100%; padding: 12px 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff; font-size: 0.95rem;">
-                        <option value="1BR">1BR</option>
-                        <option value="2BR">2BR</option>
-                        <option value="3BR">3BR</option>
-                        <option value="4BR">4BR</option>
-                        <option value="Penthouse">Penthouse</option>
+                        <?php foreach ($apartmentTypeOptions as $aptTypeOption): ?>
+                            <option value="<?php echo htmlspecialchars($aptTypeOption); ?>"><?php echo htmlspecialchars($aptTypeOption); ?></option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
                 <div style="margin-bottom: 24px;">
@@ -1102,6 +1254,37 @@ require_once 'partials/sidebar.php';
                 <div style="display: flex; gap: 12px; justify-content: flex-end;">
                     <button type="button" onclick="closeEditApartmentModal()" style="padding: 10px 20px; background: rgba(255, 255, 255, 0.1); color: #cbd5e1; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; cursor: pointer;">Cancel</button>
                     <button type="submit" name="update_apartment" style="padding: 10px 20px; background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Update Apartment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Category Modal -->
+    <div id="edit-work-type-modal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); z-index: 2000; align-items: center; justify-content: center;">
+        <div class="modal-content" style="background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 24px; max-width: 400px; width: 90%; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="color: #fff; margin: 0; font-size: 1.2rem;">Edit Category</h3>
+                <button onclick="closeEditWorkTypeModal()" style="background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; padding: 0;"><i class="fas fa-times"></i></button>
+            </div>
+            <form method="POST" id="edit-work-type-form" enctype="multipart/form-data">
+                <input type="hidden" name="work_type_id" id="edit_work_type_id">
+                <div style="margin-bottom: 20px;">
+                    <label for="edit_work_type_name" style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;">Category Name (English)</label>
+                    <input type="text" name="work_type_name" id="edit_work_type_name" required style="width: 100%; padding: 12px 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff; font-size: 0.95rem;">
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label for="edit_work_type_name_ku" style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;">Category Name (Kurdish)</label>
+                    <input type="text" name="work_type_name_ku" id="edit_work_type_name_ku" dir="rtl" style="width: 100%; padding: 12px 16px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff; font-size: 0.95rem;">
+                </div>
+                <div style="margin-bottom: 24px;">
+                    <label for="edit_work_type_image" style="display: block; color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px; font-weight: 500;">Category Image</label>
+                    <img id="edit_work_type_current_image" alt="Current image" style="display: none; width: 52px; height: 52px; object-fit: cover; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.15); margin-bottom: 10px;">
+                    <input type="file" name="category_image" id="edit_work_type_image" accept="image/png,image/jpeg,image/gif,image/webp" style="width: 100%; color: #cbd5e1;">
+                    <small style="display: block; color: #94a3b8; margin-top: 6px;">Leave empty to keep the current image.</small>
+                </div>
+                <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button type="button" onclick="closeEditWorkTypeModal()" style="padding: 10px 20px; background: rgba(255, 255, 255, 0.1); color: #cbd5e1; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; cursor: pointer;">Cancel</button>
+                    <button type="submit" name="update_work_type" style="padding: 10px 20px; background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Update Category</button>
                 </div>
             </form>
         </div>

@@ -110,7 +110,13 @@ if ($currency_type === '') {
 // unit_price; a client-supplied total is never trusted (financial integrity).
 $total_price = $quantity * $unit_price;
 
-if ($work_date === '' || $engineer_name === '' || $work_type_key === '' || $building_id <= 0 || $floor_id <= 0 || $apartment_id < 0) {
+// A location is either scoped to a real building/floor (apartment optional —
+// 0 means that building's common area), or entirely project-wide, where all
+// three are 0 (not tied to any building at all, e.g. site-wide equipment work).
+$isBuildingScoped = $building_id > 0 && $floor_id > 0 && $apartment_id >= 0;
+$isProjectWide = $building_id === 0 && $floor_id === 0 && $apartment_id === 0;
+
+if ($work_date === '' || $engineer_name === '' || $work_type_key === '' || (!$isBuildingScoped && !$isProjectWide)) {
     echo json_encode(['success' => false, 'message' => 'Missing required fields']);
     exit();
 }

@@ -1,14 +1,18 @@
 <?php
+// On the Hostinger host (detected by its account home directory), the real
+// credentials live in config.production.php — a file that is gitignored and
+// uploaded to the server only, so the production password never enters git.
+if (is_dir('/home/u670910047') && is_file(__DIR__ . '/config.production.php')) {
+    require __DIR__ . '/config.production.php';
+    return;
+}
+
+// Local XAMPP development.
 // Use 127.0.0.1 (not localhost) on macOS/XAMPP — localhost tries a socket path PHP cannot find.
 $DB_HOST = '127.0.0.1';
 $DB_NAME = 'construction_management';
 $DB_USER = 'root';
 $DB_PASS = '';
-
-// $DB_HOST = 'sql102.infinityfree.com';
-// $DB_NAME = 'if0_41578228_construction_management';
-// $DB_USER = 'if0_41578228';
-// $DB_PASS = ''; // set via environment/secret store — never commit the real password
 
 // This codebase is written for mysqli's classic "return false / set ->error"
 // behaviour (it checks execute() return values and $stmt->error throughout).

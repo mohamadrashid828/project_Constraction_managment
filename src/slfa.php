@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../config.php';
+require_once 'includes/i18n.php';
 
 if (empty($_SESSION['user_id'])) {
     header('Location: index.html');
@@ -100,7 +101,7 @@ if ($stakeholderRows) {
     }
 }
 
-$pageTitle = 'Slfa Management - Green World Towers';
+$pageTitle = t('payment_management', 'Payment Management') . ' - Green World Towers';
 $pageCss   = 'slfa.css';
 $activePage = 'slfa';
 require_once 'partials/header.php';
@@ -112,11 +113,10 @@ require_once 'partials/header.php';
     <header class="page-header">
         <h1>
             <i class="fas fa-file-invoice-dollar"></i>
-            Slfa Management
-            <span class="slfa-arabic-title">سلفه</span>
+            <?php echo htmlspecialchars(t('payment_management', 'Payment Management')); ?>
         </h1>
         <div class="user-info">
-            <span>Welcome, <?php echo htmlspecialchars($_SESSION['username']); ?></span>
+            <span><?php echo htmlspecialchars(t('welcome', 'Welcome')); ?>, <?php echo htmlspecialchars($_SESSION['username']); ?></span>
         </div>
     </header>
 
@@ -126,17 +126,17 @@ require_once 'partials/header.php';
             <!-- ══ LEFT: Stakeholder list ══ -->
             <aside class="slfa-sidebar-panel">
                 <div class="slfa-panel-head">
-                    <h2><i class="fas fa-users"></i> Stakeholders</h2>
+                    <h2><i class="fas fa-users"></i> <?php echo htmlspecialchars(t('stakeholders', 'Stakeholders')); ?></h2>
                     <div class="slfa-search-wrap">
                         <i class="fas fa-search slfa-search-icon"></i>
-                        <input type="text" id="slfa-search" class="slfa-search-input" placeholder="Search…">
+                        <input type="text" id="slfa-search" class="slfa-search-input" placeholder="<?php echo htmlspecialchars(t('search', 'Search...')); ?>">
                     </div>
                 </div>
                 <div class="slfa-stakeholder-list" id="slfa-stakeholder-list">
                     <?php if (empty($stakeholders)): ?>
                         <div class="slfa-empty-list">
                             <i class="fas fa-user-slash"></i>
-                            <p>No stakeholders found. Add them from the <a href="stakeholders.php">Stakeholders</a> page.</p>
+                            <p><?php echo htmlspecialchars(t('no_stakeholders', 'No stakeholders found.')); ?></p>
                         </div>
                     <?php else: ?>
                         <?php foreach ($stakeholders as $s): ?>
@@ -157,7 +157,7 @@ require_once 'partials/header.php';
                                     <?php if ($pendingCount > 0): ?>
                                         <span class="slfa-badge-pending"><?php echo $pendingCount; ?> pending</span>
                                     <?php elseif ((int)$s['payment_count'] > 0): ?>
-                                        <span class="slfa-badge-done"><i class="fas fa-check-double"></i> settled</span>
+                                        <span class="slfa-badge-done"><i class="fas fa-check-double"></i> <?php echo htmlspecialchars(t('settled_only', 'Settled')); ?></span>
                                     <?php endif; ?>
                                 </div>
                                 <div class="slfa-card-type">
@@ -174,7 +174,7 @@ require_once 'partials/header.php';
                                 </div>
                                 <?php if ($totalSlfaSqm > 0): ?>
                                     <div class="slfa-card-slfa-total">
-                                        <i class="fas fa-building"></i> Total Slfa: <strong><?php echo number_format($totalSlfaSqm, 2); ?> m²</strong>
+                                        <i class="fas fa-building"></i> <?php echo htmlspecialchars(t('total_payment_earned', 'Total Payment Earned')); ?>: <strong><?php echo number_format($totalSlfaSqm, 2); ?> m²</strong>
                                     </div>
                                 <?php endif; ?>
                             </div>
@@ -189,8 +189,8 @@ require_once 'partials/header.php';
                 <!-- Empty state -->
                 <div class="slfa-empty-state" id="slfa-empty-state">
                     <div class="slfa-empty-icon"><i class="fas fa-file-invoice-dollar"></i></div>
-                    <h3>Select a Stakeholder</h3>
-                    <p>Choose a stakeholder from the list to view their work entries and calculate Slfa (سلفه) payments.</p>
+                    <h3><?php echo htmlspecialchars(t('select_stakeholder', 'Select a Stakeholder')); ?></h3>
+                    <p><?php echo htmlspecialchars(t('select_stakeholder_hint', 'Choose a stakeholder from the list to view their work entries and calculate payments.')); ?></p>
                 </div>
 
                 <!-- Detail view (hidden until selected) -->
@@ -205,21 +205,21 @@ require_once 'partials/header.php';
                     <!-- ── Entries ── -->
                     <div class="slfa-section-card">
                         <div class="slfa-section-head">
-                            <h3><i class="fas fa-list-check"></i> Work Entries</h3>
+                            <h3><i class="fas fa-list-check"></i> <?php echo htmlspecialchars(t('work_entries', 'Work Entries')); ?></h3>
                             <div class="slfa-entry-filters">
                                 <select id="slfa-status-filter" onchange="loadEntries()">
-                                    <option value="">All Statuses</option>
-                                    <option value="accepted" selected>Accepted only</option>
-                                    <option value="medium">Medium only</option>
-                                    <option value="rejected">Rejected only</option>
+                                    <option value=""><?php echo htmlspecialchars(t('all_statuses', 'All Statuses')); ?></option>
+                                    <option value="accepted" selected><?php echo htmlspecialchars(t('accepted_only', 'Accepted only')); ?></option>
+                                    <option value="medium"><?php echo htmlspecialchars(t('medium_only', 'Medium only')); ?></option>
+                                    <option value="rejected"><?php echo htmlspecialchars(t('rejected_only', 'Rejected only')); ?></option>
                                 </select>
                                 <select id="slfa-settled-filter" onchange="loadEntries()">
-                                    <option value="unsettled" selected>Unsettled only</option>
-                                    <option value="">All entries</option>
-                                    <option value="settled">Settled only</option>
+                                    <option value="unsettled" selected><?php echo htmlspecialchars(t('unsettled_only', 'Unsettled only')); ?></option>
+                                    <option value=""><?php echo htmlspecialchars(t('all_entries', 'All entries')); ?></option>
+                                    <option value="settled"><?php echo htmlspecialchars(t('settled_only', 'Settled only')); ?></option>
                                 </select>
                                 <button class="slfa-btn slfa-btn-ghost" onclick="toggleSelectAll()">
-                                    <i class="fas fa-check-square"></i> Toggle All
+                                    <i class="fas fa-check-square"></i> <?php echo htmlspecialchars(t('toggle_all', 'Toggle All')); ?>
                                 </button>
                             </div>
                         </div>
@@ -230,18 +230,18 @@ require_once 'partials/header.php';
                                         <th class="col-check">
                                             <input type="checkbox" id="check-all" onchange="checkAllEntries(this)" title="Select all">
                                         </th>
-                                        <th>Date</th>
-                                        <th>Building / Floor / Apt</th>
-                                        <th>Subpart / Work</th>
-                                        <th>Qty</th>
-                                        <th>Unit Price</th>
-                                        <th>Total</th>
-                                        <th>Status</th>
-                                        <th>Settlement</th>
+                                        <th><?php echo htmlspecialchars(t('date', 'Date')); ?></th>
+                                        <th><?php echo htmlspecialchars(t('building_floor_apt', 'Building / Floor / Apt')); ?></th>
+                                        <th><?php echo htmlspecialchars(t('subpart_work', 'Subpart / Work')); ?></th>
+                                        <th><?php echo htmlspecialchars(t('quantity', 'Qty')); ?></th>
+                                        <th><?php echo htmlspecialchars(t('unit_price', 'Unit Price')); ?></th>
+                                        <th><?php echo htmlspecialchars(t('total', 'Total')); ?></th>
+                                        <th><?php echo htmlspecialchars(t('status', 'Status')); ?></th>
+                                        <th><?php echo htmlspecialchars(t('settlement', 'Settlement')); ?></th>
                                     </tr>
                                 </thead>
                                 <tbody id="slfa-entries-tbody">
-                                    <tr><td colspan="9" class="slfa-empty-row">Select a stakeholder to view entries.</td></tr>
+                                    <tr><td colspan="9" class="slfa-empty-row"><?php echo htmlspecialchars(t('select_to_view', 'Select a stakeholder to view entries.')); ?></td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -250,9 +250,9 @@ require_once 'partials/header.php';
                     <!-- ── Calculator ── -->
                     <div class="slfa-section-card slfa-calc-section" id="slfa-calculator">
                         <div class="slfa-section-head">
-                            <h3><i class="fas fa-calculator"></i> Slfa Calculator</h3>
+                            <h3><i class="fas fa-calculator"></i> <?php echo htmlspecialchars(t('payment_calculator', 'Payment Calculator')); ?></h3>
                             <button class="slfa-btn slfa-btn-ghost" onclick="recalculate()">
-                                <i class="fas fa-sync-alt"></i> Recalculate
+                                <i class="fas fa-sync-alt"></i> <?php echo htmlspecialchars(t('recalculate', 'Recalculate')); ?>
                             </button>
                         </div>
 
@@ -260,7 +260,7 @@ require_once 'partials/header.php';
                             <div class="slfa-calc-card calc-total">
                                 <div class="calc-icon"><i class="fas fa-sigma"></i></div>
                                 <div class="calc-body">
-                                    <span class="calc-label">Selected Work Value</span>
+                                    <span class="calc-label"><?php echo htmlspecialchars(t('selected_work_value', 'Selected Work Value')); ?></span>
                                     <strong class="calc-value" id="calc-total-value">$0.00</strong>
                                     <span class="calc-sub" id="calc-entries-count">0 entries selected</span>
                                 </div>
@@ -268,7 +268,7 @@ require_once 'partials/header.php';
                             <div class="slfa-calc-card calc-cash">
                                 <div class="calc-icon"><i class="fas fa-money-bill-wave"></i></div>
                                 <div class="calc-body">
-                                    <span class="calc-label">Cash Payment</span>
+                                    <span class="calc-label"><?php echo htmlspecialchars(t('cash_payment', 'Cash Payment')); ?></span>
                                     <strong class="calc-value" id="calc-cash-amount">$0.00</strong>
                                     <span class="calc-sub" id="calc-cash-pct">0% of total</span>
                                 </div>
@@ -276,7 +276,7 @@ require_once 'partials/header.php';
                             <div class="slfa-calc-card calc-apt">
                                 <div class="calc-icon"><i class="fas fa-building"></i></div>
                                 <div class="calc-body">
-                                    <span class="calc-label">Apartment Value</span>
+                                    <span class="calc-label"><?php echo htmlspecialchars(t('apartment_value', 'Apartment Value')); ?></span>
                                     <strong class="calc-value" id="calc-apt-amount">$0.00</strong>
                                     <span class="calc-sub" id="calc-apt-pct">0% of total</span>
                                 </div>
@@ -284,7 +284,7 @@ require_once 'partials/header.php';
                             <div class="slfa-calc-card calc-slfa">
                                 <div class="calc-icon"><i class="fas fa-vector-square"></i></div>
                                 <div class="calc-body">
-                                    <span class="calc-label">Slfa <span class="arabic-small">سلفه</span></span>
+                                    <span class="calc-label"><?php echo htmlspecialchars(t('payment', 'Payment')); ?></span>
                                     <strong class="calc-value slfa-sqm-val" id="calc-apt-sqm">0.0000 m²</strong>
                                     <span class="calc-sub" id="calc-apt-price">@ $0.00/m²</span>
                                 </div>
@@ -293,15 +293,15 @@ require_once 'partials/header.php';
 
                         <div class="slfa-payment-form">
                             <div class="slfa-form-row">
-                                <label for="slfa-payment-date"><i class="fas fa-calendar-alt"></i> Payment Date</label>
+                                <label for="slfa-payment-date"><i class="fas fa-calendar-alt"></i> <?php echo htmlspecialchars(t('payment_date', 'Payment Date')); ?></label>
                                 <input type="date" id="slfa-payment-date" value="<?php echo date('Y-m-d'); ?>">
                             </div>
                             <div class="slfa-form-row">
-                                <label for="slfa-payment-notes"><i class="fas fa-sticky-note"></i> Notes</label>
-                                <input type="text" id="slfa-payment-notes" placeholder="Optional notes for this Slfa payment…">
+                                <label for="slfa-payment-notes"><i class="fas fa-sticky-note"></i> <?php echo htmlspecialchars(t('notes', 'Notes')); ?></label>
+                                <input type="text" id="slfa-payment-notes" placeholder="<?php echo htmlspecialchars(t('optional_payment_notes', 'Optional notes for this payment...')); ?>">
                             </div>
                             <button class="slfa-btn slfa-btn-primary slfa-create-btn" id="slfa-create-btn" onclick="createSlfaPayment()" disabled>
-                                <i class="fas fa-file-invoice-dollar"></i> Create Slfa Payment
+                                <i class="fas fa-file-invoice-dollar"></i> <?php echo htmlspecialchars(t('create_payment', 'Create Payment')); ?>
                             </button>
                         </div>
                     </div>
@@ -309,7 +309,7 @@ require_once 'partials/header.php';
                     <!-- ── Payment History ── -->
                     <div class="slfa-section-card">
                         <div class="slfa-section-head">
-                            <h3><i class="fas fa-history"></i> Slfa Payment History</h3>
+                            <h3><i class="fas fa-history"></i> <?php echo htmlspecialchars(t('payment_history', 'Payment History')); ?></h3>
                         </div>
                         <div class="slfa-table-wrap">
                             <table class="slfa-table slfa-history-table">
@@ -321,12 +321,12 @@ require_once 'partials/header.php';
                                         <th>Work Value</th>
                                         <th>Cash (<span id="hist-cash-pct">—</span>%)</th>
                                         <th>Apt Value (<span id="hist-apt-pct">—</span>%)</th>
-                                        <th>Slfa m²</th>
+                                        <th><?php echo htmlspecialchars(t('payment_m2', 'Payment m2')); ?></th>
                                         <th>Notes</th>
                                     </tr>
                                 </thead>
                                 <tbody id="slfa-history-tbody">
-                                    <tr><td colspan="8" class="slfa-empty-row">No payment records yet.</td></tr>
+                                    <tr><td colspan="8" class="slfa-empty-row"><?php echo htmlspecialchars(t('no_payment_records', 'No payment records yet.')); ?></td></tr>
                                 </tbody>
                                 <tfoot id="slfa-history-tfoot" style="display:none">
                                     <tr class="slfa-tfoot-totals">
@@ -357,13 +357,18 @@ require_once 'partials/header.php';
             <div class="slfa-modal-title">
                 <i class="fas fa-file-invoice-dollar"></i>
                 <div>
-                    <h2 id="modal-title">Slfa Payment Detail</h2>
+                    <h2 id="modal-title"><?php echo htmlspecialchars(t('payment_detail', 'Payment Detail')); ?></h2>
                     <span id="modal-subtitle" class="slfa-modal-sub"></span>
                 </div>
             </div>
-            <button class="slfa-modal-close" onclick="closePaymentDetail()" title="Close">
-                <i class="fas fa-times"></i>
-            </button>
+            <div class="slfa-modal-header-actions">
+                <button class="slfa-modal-close slfa-modal-print" id="btn-print-payment" onclick="printPaymentDetail()" title="Print" disabled>
+                    <i class="fas fa-print"></i>
+                </button>
+                <button class="slfa-modal-close" onclick="closePaymentDetail()" title="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
         </div>
 
         <div class="slfa-modal-body" id="payment-detail-body">
@@ -380,40 +385,40 @@ require_once 'partials/header.php';
             <div class="slfa-modal-title">
                 <i class="fas fa-exchange-alt"></i>
                 <div>
-                    <h2>Change Entry Status</h2>
-                    <span class="slfa-modal-sub" id="slfa-sc-current-label">Current: —</span>
+                    <h2><?php echo htmlspecialchars(t('change_entry_status', 'Change entry status')); ?></h2>
+                    <span class="slfa-modal-sub" id="slfa-sc-current-label"><?php echo htmlspecialchars(t('current', 'Current')); ?>: —</span>
                 </div>
             </div>
-            <button class="slfa-modal-close" onclick="closeSlfaStatusModal()" title="Close">
+            <button class="slfa-modal-close" onclick="closeSlfaStatusModal()" title="<?php echo htmlspecialchars(t('close', 'Close')); ?>">
                 <i class="fas fa-times"></i>
             </button>
         </div>
         <div class="slfa-sc-modal-body">
-            <p class="slfa-sc-choose-label">Choose new status:</p>
+            <p class="slfa-sc-choose-label"><?php echo htmlspecialchars(t('choose_new_status', 'Choose new status:')); ?></p>
             <div class="slfa-sc-status-grid">
                 <button type="button" class="slfa-sc-status-btn slfa-sc-btn-accepted" onclick="selectSlfaStatus('accepted')">
                     <i class="fas fa-check-circle"></i>
-                    <strong>Accepted</strong>
-                    <small>Ready for payment</small>
+                    <strong><?php echo htmlspecialchars(t('accepted', 'Accepted')); ?></strong>
+                    <small><?php echo htmlspecialchars(t('ready_for_payment', 'Ready for payment')); ?></small>
                 </button>
                 <button type="button" class="slfa-sc-status-btn slfa-sc-btn-medium" onclick="selectSlfaStatus('medium')">
                     <i class="fas fa-minus-circle"></i>
-                    <strong>Medium</strong>
-                    <small>Needs review</small>
+                    <strong><?php echo htmlspecialchars(t('medium', 'Medium')); ?></strong>
+                    <small><?php echo htmlspecialchars(t('needs_review', 'Needs review')); ?></small>
                 </button>
                 <button type="button" class="slfa-sc-status-btn slfa-sc-btn-rejected" onclick="selectSlfaStatus('rejected')">
                     <i class="fas fa-times-circle"></i>
-                    <strong>Rejected</strong>
-                    <small>Cannot be paid</small>
+                    <strong><?php echo htmlspecialchars(t('rejected', 'Rejected')); ?></strong>
+                    <small><?php echo htmlspecialchars(t('cannot_be_paid', 'Cannot be paid')); ?></small>
                 </button>
             </div>
         </div>
         <div class="slfa-sc-modal-footer">
             <button type="button" class="slfa-btn slfa-btn-ghost" onclick="closeSlfaStatusModal()">
-                <i class="fas fa-times"></i> Cancel
+                <i class="fas fa-times"></i> <?php echo htmlspecialchars(t('cancel', 'Cancel')); ?>
             </button>
             <button type="button" class="slfa-btn slfa-btn-primary" id="slfa-sc-save-btn" disabled onclick="saveSlfaStatus()">
-                <i class="fas fa-save"></i> Save Status
+                <i class="fas fa-save"></i> <?php echo htmlspecialchars(t('save_status', 'Save Status')); ?>
             </button>
         </div>
     </div>
@@ -423,6 +428,8 @@ require_once 'partials/header.php';
 
 <script>
 const slfaStakeholders = <?php echo json_encode($stakeholders, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP); ?>;
+const translations = <?php echo translation_json(); ?>;
+const tr = (key, fallback) => translations[key] || fallback || key;
 
 let currentStakeholderId  = null;
 let currentStakeholderObj = null;
@@ -462,9 +469,9 @@ function renderDetailHead() {
             </div>
         </div>
         <div class="dhead-counts">
-            <div class="dhead-count acc" title="Pending (unsettled) accepted entries"><i class="fas fa-check-circle"></i><span>${parseInt(s.accepted_count)}</span><small>Pending Accept</small></div>
-            <div class="dhead-count med" title="Pending (unsettled) medium entries"><i class="fas fa-minus-circle"></i><span>${parseInt(s.medium_count)}</span><small>Pending Med.</small></div>
-            <div class="dhead-count rej" title="Rejected entries — must be changed to Accepted before payment"><i class="fas fa-times-circle"></i><span>${parseInt(s.rejected_count)}</span><small>Pending Rej.</small></div>
+            <div class="dhead-count acc" title="${tr('pending_accepted', 'Pending Accepted')}"><i class="fas fa-check-circle"></i><span>${parseInt(s.accepted_count)}</span><small>${tr('pending_accepted', 'Pending Accepted')}</small></div>
+            <div class="dhead-count med" title="${tr('pending_medium', 'Pending Medium')}"><i class="fas fa-minus-circle"></i><span>${parseInt(s.medium_count)}</span><small>${tr('pending_medium', 'Pending Medium')}</small></div>
+            <div class="dhead-count rej" title="${tr('pending_rejected', 'Pending Rejected')}"><i class="fas fa-times-circle"></i><span>${parseInt(s.rejected_count)}</span><small>${tr('pending_rejected', 'Pending Rejected')}</small></div>
         </div>
     `;
 
@@ -472,26 +479,26 @@ function renderDetailHead() {
         <div class="pay-set-grid">
             <div class="pay-set-item cash">
                 <i class="fas fa-money-bill-wave"></i>
-                <div><span>Cash %</span><strong>${cashPct.toFixed(1)}%</strong></div>
+                <div><span>${tr('cash_percent', 'Cash %')}</span><strong>${cashPct.toFixed(1)}%</strong></div>
             </div>
             <div class="pay-set-item apt">
                 <i class="fas fa-building"></i>
-                <div><span>Apartment %</span><strong>${aptPct.toFixed(1)}%</strong></div>
+                <div><span>${tr('apartment_percent', 'Apartment %')}</span><strong>${aptPct.toFixed(1)}%</strong></div>
             </div>
             <div class="pay-set-item price">
                 <i class="fas fa-tag"></i>
-                <div><span>Price / m²</span><strong>$${formatNum(aptPrice)}/m²</strong></div>
+                <div><span>${tr('price_per_sqm', 'Price / m2')}</span><strong>$${formatNum(aptPrice)}/m²</strong></div>
             </div>
             <div class="pay-set-item pending">
                 <i class="fas fa-coins"></i>
-                <div><span>Unsettled Value</span><strong>$${formatNum(parseFloat(s.pending_value) || 0)}</strong></div>
+                <div><span>${tr('unsettled_value', 'Unsettled Value')}</span><strong>$${formatNum(parseFloat(s.pending_value) || 0)}</strong></div>
             </div>
             <div class="pay-set-item slfa-accum">
                 <i class="fas fa-vector-square"></i>
-                <div><span>Total Slfa Earned</span><strong>${parseFloat(s.total_slfa_sqm || 0).toFixed(4)} m²</strong></div>
+                <div><span>${tr('total_payment_earned', 'Total Payment Earned')}</span><strong>${parseFloat(s.total_slfa_sqm || 0).toFixed(4)} m²</strong></div>
             </div>
         </div>
-        ${parseInt(s.rejected_count) > 0 ? `<div class="slfa-rejected-warning"><i class="fas fa-exclamation-triangle"></i> <strong>${parseInt(s.rejected_count)}</strong> rejected entr${parseInt(s.rejected_count) === 1 ? 'y needs' : 'ies need'} status change to <em>Accepted</em> before they can be included in a payment. Use the <strong>Accept</strong> button on rejected rows below.</div>` : ''}
+        ${parseInt(s.rejected_count) > 0 ? `<div class="slfa-rejected-warning"><i class="fas fa-exclamation-triangle"></i> <strong>${parseInt(s.rejected_count)}</strong> ${tr('rejected_entries_warning', 'rejected entries need status change to Accepted before payment.')}</div>` : ''}
     `;
 
     // Update column header percentages in history table
@@ -509,7 +516,7 @@ function loadEntries() {
     const settledFilter = document.getElementById('slfa-settled-filter').value;
 
     const tbody = document.getElementById('slfa-entries-tbody');
-    tbody.innerHTML = '<tr><td colspan="9" class="slfa-loading-row"><i class="fas fa-spinner fa-spin"></i> Loading…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="slfa-loading-row"><i class="fas fa-spinner fa-spin"></i> ' + escHtml(tr('loading', 'Loading...')) + '</td></tr>';
 
     const params = new URLSearchParams({
         mode: 'entries',
@@ -522,13 +529,13 @@ function loadEntries() {
         .then(r => r.json())
         .then(data => {
             if (!data.success) {
-                tbody.innerHTML = '<tr><td colspan="9" class="slfa-empty-row">' + escHtml(data.message || 'Error loading entries') + '</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" class="slfa-empty-row">' + escHtml(data.message || tr('error_loading_entries', 'Error loading entries')) + '</td></tr>';
                 return;
             }
             renderEntries(data.entries || []);
         })
         .catch(() => {
-            tbody.innerHTML = '<tr><td colspan="9" class="slfa-empty-row">Network error. Could not load entries.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" class="slfa-empty-row">' + escHtml(tr('network_error', 'Network error. Could not load entries.')) + '</td></tr>';
         });
 }
 
@@ -536,7 +543,7 @@ function loadEntries() {
 function renderEntries(entries) {
     const tbody = document.getElementById('slfa-entries-tbody');
     if (!entries.length) {
-        tbody.innerHTML = '<tr><td colspan="9" class="slfa-empty-row">No entries found for these filters.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="slfa-empty-row">' + escHtml(tr('no_entries_found', 'No entries found for these filters.')) + '</td></tr>';
         recalculate();
         return;
     }
@@ -546,15 +553,15 @@ function renderEntries(entries) {
         const isAccepted = e.status === 'accepted';
         const checkedAttr  = (!isSettled && isAccepted) ? 'checked' : '';
         const disabledAttr = isSettled
-            ? 'disabled title="Settled in Slfa #' + escHtml(e.slfa_payment_id) + '"'
+            ? 'disabled title="' + escHtml(tr('settled', 'Settled')) + ' #' + escHtml(e.slfa_payment_id) + '"'
             : '';
         const settleBadge = isSettled
             ? `<span class="badge-settled"><i class="fas fa-check-double"></i> #${parseInt(e.slfa_payment_id)}</span>`
-            : `<span class="badge-unsettled">Pending</span>`;
+            : `<span class="badge-unsettled">${tr('pending', 'Pending')}</span>`;
 
         const statusCell = isSettled
-            ? `<span class="status-badge status-${escHtml(e.status)}">${capitalize(e.status)}</span>`
-            : `<button type="button" class="status-badge status-${escHtml(e.status)} slfa-sc-btn" onclick="openSlfaStatusModal(${parseInt(e.id)}, '${escHtml(e.status)}')" title="Click to change status">${capitalize(e.status)} <i class='fas fa-pen sc-pen-icon'></i></button>`;
+            ? `<span class="status-badge status-${escHtml(e.status)}">${statusLabel(e.status)}</span>`
+            : `<button type="button" class="status-badge status-${escHtml(e.status)} slfa-sc-btn" onclick="openSlfaStatusModal(${parseInt(e.id)}, '${escHtml(e.status)}')" title="${tr('click_change_status', 'Click to change status')}">${statusLabel(e.status)} <i class='fas fa-pen sc-pen-icon'></i></button>`;
 
         return `<tr class="${isSettled ? 'row-settled' : (isAccepted ? 'row-accepted' : '')}">
             <td class="col-check">
@@ -599,11 +606,11 @@ function recalculate() {
     const aptSqm     = aptPrice > 0 ? aptAmount / aptPrice : 0;
 
     document.getElementById('calc-total-value').textContent   = '$' + formatNum(totalValue);
-    document.getElementById('calc-entries-count').textContent = count + (count === 1 ? ' entry selected' : ' entries selected');
+    document.getElementById('calc-entries-count').textContent = count + ' ' + tr(count === 1 ? 'entry_selected' : 'entries_selected', count === 1 ? 'entry selected' : 'entries selected');
     document.getElementById('calc-cash-amount').textContent   = '$' + formatNum(cashAmount);
-    document.getElementById('calc-cash-pct').textContent      = cashPct.toFixed(1) + '% of total';
+    document.getElementById('calc-cash-pct').textContent      = cashPct.toFixed(1) + '% ' + tr('of_total', 'of total');
     document.getElementById('calc-apt-amount').textContent    = '$' + formatNum(aptAmount);
-    document.getElementById('calc-apt-pct').textContent       = aptPct.toFixed(1) + '% of total';
+    document.getElementById('calc-apt-pct').textContent       = aptPct.toFixed(1) + '% ' + tr('of_total', 'of total');
     document.getElementById('calc-apt-sqm').textContent       = aptSqm.toFixed(4) + ' m²';
     document.getElementById('calc-apt-price').textContent     = '@ $' + formatNum(aptPrice) + '/m²';
 
@@ -633,13 +640,13 @@ function loadPaymentHistory() {
     if (!currentStakeholderId) return;
 
     const tbody = document.getElementById('slfa-history-tbody');
-    tbody.innerHTML = '<tr><td colspan="8" class="slfa-loading-row"><i class="fas fa-spinner fa-spin"></i> Loading…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="slfa-loading-row"><i class="fas fa-spinner fa-spin"></i> ' + escHtml(tr('loading', 'Loading...')) + '</td></tr>';
 
     fetch('get_slfa_entries.php?mode=history&stakeholder_id=' + currentStakeholderId)
         .then(r => r.json())
         .then(data => {
             if (!data.success || !data.payments || !data.payments.length) {
-                tbody.innerHTML = '<tr><td colspan="8" class="slfa-empty-row">No Slfa payment records yet.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="slfa-empty-row">' + escHtml(tr('no_payment_records_yet', 'No payment records yet.')) + '</td></tr>';
                 document.getElementById('slfa-history-tfoot').style.display = 'none';
                 return;
             }
@@ -651,7 +658,7 @@ function loadPaymentHistory() {
 function renderPaymentHistory(payments) {
     const tbody = document.getElementById('slfa-history-tbody');
     tbody.innerHTML = payments.map((p, i) => `
-        <tr class="history-row-clickable" onclick="openPaymentDetail(${parseInt(p.id)})" title="Click to view full details">
+        <tr class="history-row-clickable" onclick="openPaymentDetail(${parseInt(p.id)})" title="${tr('click_view_details', 'Click to view full details')}">
             <td class="col-num">${i + 1}</td>
             <td><span class="hist-date-link">${escHtml(p.payment_date_display)}</span></td>
             <td class="col-center">${parseInt(p.entry_count)}</td>
@@ -688,7 +695,7 @@ function createSlfaPayment() {
     });
 
     if (selectedIds.length === 0) {
-        alert('Please select at least one entry.');
+        alert(tr('please_select_entry', 'Please select at least one entry.'));
         return;
     }
 
@@ -696,7 +703,7 @@ function createSlfaPayment() {
     const notes       = document.getElementById('slfa-payment-notes').value.trim();
 
     if (!paymentDate) {
-        alert('Please enter a payment date.');
+        alert(tr('please_enter_payment_date', 'Please enter a payment date.'));
         return;
     }
 
@@ -707,18 +714,18 @@ function createSlfaPayment() {
     const aptAmount  = totalValue * aptPct  / 100;
     const aptSqm     = aptPrice > 0 ? aptAmount / aptPrice : 0;
 
-    const msg = `Create Slfa Payment?\n\n`
-        + `Work Value:     $${formatNum(totalValue)}\n`
-        + `Cash (${cashPct}%): $${formatNum(cashAmount)}\n`
-        + `Apartment (${aptPct}%): $${formatNum(aptAmount)}\n`
-        + `Slfa (م²):     ${aptSqm.toFixed(4)} m²\n\n`
-        + `This will mark ${selectedIds.length} entr${selectedIds.length === 1 ? 'y' : 'ies'} as settled.`;
+    const msg = `${tr('confirm_create_payment', 'Create Payment?')}\n\n`
+        + `${tr('work_value', 'Work Value')}:     $${formatNum(totalValue)}\n`
+        + `${tr('cash', 'Cash')} (${cashPct}%): $${formatNum(cashAmount)}\n`
+        + `${tr('apartment', 'Apartment')} (${aptPct}%): $${formatNum(aptAmount)}\n`
+        + `${tr('payment_m2', 'Payment m2')}:     ${aptSqm.toFixed(4)} m²\n\n`
+        + `${tr('this_will_mark', 'This will mark')} ${selectedIds.length} ${tr('entries_selected', 'entries')} ${tr('as_settled', 'as settled.')}`;
 
     if (!confirm(msg)) return;
 
     const btn = document.getElementById('slfa-create-btn');
     btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + escHtml(tr('saving', 'Saving...'));
 
     fetch('save_slfa_payment.php', {
         method: 'POST',
@@ -740,22 +747,22 @@ function createSlfaPayment() {
     })
     .then(r => r.json())
     .then(data => {
-        btn.innerHTML = '<i class="fas fa-file-invoice-dollar"></i> Create Slfa Payment';
+        btn.innerHTML = '<i class="fas fa-file-invoice-dollar"></i> ' + escHtml(tr('create_payment', 'Create Payment'));
         if (data.success) {
             document.getElementById('slfa-payment-notes').value = '';
-            showToast('Slfa payment created successfully!', 'success');
+            showToast(tr('payment_created', 'Payment created successfully!'), 'success');
             refreshStakeholderStats(currentStakeholderId);
             loadEntries();
             loadPaymentHistory();
         } else {
             btn.disabled = false;
-            alert('Error: ' + (data.message || 'Failed to save payment.'));
+            alert(data.message || tr('error_save_payment', 'Error: Failed to save payment.'));
         }
     })
     .catch(() => {
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-file-invoice-dollar"></i> Create Slfa Payment';
-        alert('Network error. Please try again.');
+        btn.innerHTML = '<i class="fas fa-file-invoice-dollar"></i> ' + escHtml(tr('create_payment', 'Create Payment'));
+        alert(tr('network_try_again', 'Network error. Please try again.'));
     });
 }
 
@@ -794,9 +801,10 @@ function openPaymentDetail(paymentId) {
     const title   = document.getElementById('modal-title');
     const sub     = document.getElementById('modal-subtitle');
 
-    title.textContent = 'Slfa Payment #' + paymentId;
+    title.textContent = tr('payment_number', 'Payment') + ' #' + paymentId;
     sub.textContent   = '';
-    body.innerHTML    = '<div class="slfa-modal-loading"><i class="fas fa-spinner fa-spin"></i> Loading…</div>';
+    body.innerHTML    = '<div class="slfa-modal-loading"><i class="fas fa-spinner fa-spin"></i> ' + escHtml(tr('loading', 'Loading...')) + '</div>';
+    document.getElementById('btn-print-payment').disabled = true;
     overlay.classList.add('open');
     document.body.style.overflow = 'hidden';
 
@@ -810,13 +818,13 @@ function openPaymentDetail(paymentId) {
         .then(r => r.json())
         .then(data => {
             if (!data.success) {
-                body.innerHTML = '<div class="slfa-modal-error"><i class="fas fa-exclamation-circle"></i> ' + escHtml(data.message || 'Failed to load') + '</div>';
+                body.innerHTML = '<div class="slfa-modal-error"><i class="fas fa-exclamation-circle"></i> ' + escHtml(data.message || tr('failed_to_load', 'Failed to load')) + '</div>';
                 return;
             }
             renderPaymentDetailModal(data.payment, data.entries || []);
         })
         .catch(() => {
-            body.innerHTML = '<div class="slfa-modal-error"><i class="fas fa-exclamation-circle"></i> Network error.</div>';
+            body.innerHTML = '<div class="slfa-modal-error"><i class="fas fa-exclamation-circle"></i> ' + escHtml(tr('network_error', 'Network error.')) + '</div>';
         });
 }
 
@@ -834,18 +842,19 @@ document.addEventListener('keydown', function(e) {
 function renderPaymentDetailModal(payment, entries) {
     const sub = document.getElementById('modal-subtitle');
     sub.textContent = (payment.stakeholder_name || '') + ' · ' + (payment.work_type_label || '') + ' · ' + (payment.payment_date_display || '');
+    document.getElementById('btn-print-payment').disabled = false;
 
     const createdBy = payment.created_by_fullname || payment.created_by_name || 'Admin';
 
     // Build entries rows
     const entryRows = entries.length === 0
-        ? '<tr><td colspan="8" class="slfa-empty-row">No entries linked to this payment.</td></tr>'
+        ? '<tr><td colspan="8" class="slfa-empty-row">' + escHtml(tr('no_entries_linked', 'No entries linked to this payment.')) + '</td></tr>'
         : entries.map((e, i) => `
             <tr>
                 <td class="col-num">${i + 1}</td>
                 <td class="col-date">
                     <strong>${escHtml(e.entry_date_display)}</strong>
-                    <div class="modal-entry-sub">Submitted ${escHtml(e.submitted_at_display)}</div>
+                    <div class="modal-entry-sub">${tr('submitted', 'Submitted')} ${escHtml(e.submitted_at_display)}</div>
                 </td>
                 <td>
                     <div>${escHtml(e.location)}</div>
@@ -864,8 +873,8 @@ function renderPaymentDetailModal(payment, entries) {
                         const cls = wasRejected ? 'modal-sc-note modal-sc-note-rejected' : 'modal-sc-note';
                         const icon = wasRejected ? 'fas fa-exclamation-triangle' : 'fas fa-history';
                         const label = wasRejected
-                            ? `<strong>Rejected by engineer</strong> &mdash; accepted by <strong>${escHtml(e.status_changed_by_name || 'Admin')}</strong>`
-                            : `Was <em>${capitalize(e.previous_status)}</em> &rarr; ${escHtml(e.status_changed_by_name || 'Admin')}`;
+                            ? `<strong>${tr('rejected_by_engineer', 'Rejected by engineer')}</strong> &mdash; ${tr('accepted_by', 'accepted by')} <strong>${escHtml(e.status_changed_by_name || 'Admin')}</strong>`
+                            : `${tr('was', 'Was')} <em>${statusLabel(e.previous_status)}</em> &rarr; ${escHtml(e.status_changed_by_name || 'Admin')}`;
                         return `<div class="${cls}"><i class="${icon}"></i> ${label} &middot; ${escHtml(e.status_changed_at_display)}</div>`;
                     })() : ''}
                 </td>
@@ -879,28 +888,28 @@ function renderPaymentDetailModal(payment, entries) {
             <div class="modal-sum-card modal-sum-work">
                 <i class="fas fa-sigma"></i>
                 <div>
-                    <span>Total Work Value</span>
+                    <span>${tr('work_value', 'Work Value')}</span>
                     <strong>$${formatNum(parseFloat(payment.total_work_value))}</strong>
                 </div>
             </div>
             <div class="modal-sum-card modal-sum-cash">
                 <i class="fas fa-money-bill-wave"></i>
                 <div>
-                    <span>Cash (${parseFloat(payment.cash_percentage).toFixed(1)}%)</span>
+                    <span>${tr('cash', 'Cash')} (${parseFloat(payment.cash_percentage).toFixed(1)}%)</span>
                     <strong>$${formatNum(parseFloat(payment.cash_amount))}</strong>
                 </div>
             </div>
             <div class="modal-sum-card modal-sum-apt">
                 <i class="fas fa-building"></i>
                 <div>
-                    <span>Apartment (${parseFloat(payment.apartment_percentage).toFixed(1)}%)</span>
+                    <span>${tr('apartment', 'Apartment')} (${parseFloat(payment.apartment_percentage).toFixed(1)}%)</span>
                     <strong>$${formatNum(parseFloat(payment.apartment_amount))}</strong>
                 </div>
             </div>
             <div class="modal-sum-card modal-sum-slfa">
                 <i class="fas fa-vector-square"></i>
                 <div>
-                    <span>Slfa سلفه @ $${formatNum(parseFloat(payment.apartment_meter_price))}/m²</span>
+                    <span>${tr('payment', 'Payment')} @ $${formatNum(parseFloat(payment.apartment_meter_price))}/m²</span>
                     <strong>${parseFloat(payment.apartment_sqm).toFixed(4)} m²</strong>
                 </div>
             </div>
@@ -910,48 +919,48 @@ function renderPaymentDetailModal(payment, entries) {
         <div class="modal-meta-row">
             <div class="modal-meta-item">
                 <i class="fas fa-calendar-check"></i>
-                <span>Payment Date</span>
+                <span>${tr('payment_date', 'Payment Date')}</span>
                 <strong>${escHtml(payment.payment_date_display)}</strong>
             </div>
             <div class="modal-meta-item">
                 <i class="fas fa-list-ol"></i>
-                <span>Entries Settled</span>
+                <span>${tr('entries_settled', 'Entries Settled')}</span>
                 <strong>${parseInt(payment.entry_count)}</strong>
             </div>
             <div class="modal-meta-item">
                 <i class="fas fa-user-shield"></i>
-                <span>Created by Admin</span>
+                <span>${tr('created_by_admin', 'Created by Admin')}</span>
                 <strong>${escHtml(createdBy)}</strong>
             </div>
             <div class="modal-meta-item">
                 <i class="fas fa-clock"></i>
-                <span>Created at</span>
+                <span>${tr('created_at', 'Created at')}</span>
                 <strong>${escHtml(payment.created_at_display)}</strong>
             </div>
             ${payment.notes ? `
             <div class="modal-meta-item modal-meta-notes">
                 <i class="fas fa-sticky-note"></i>
-                <span>Notes</span>
+                <span>${tr('notes', 'Notes')}</span>
                 <strong>${escHtml(payment.notes)}</strong>
             </div>` : ''}
         </div>
 
         <!-- Entries table -->
         <div class="modal-entries-head">
-            <h3><i class="fas fa-list-check"></i> Settled Work Entries (${entries.length})</h3>
+            <h3><i class="fas fa-list-check"></i> ${tr('settled_work_entries', 'Settled Work Entries')} (${entries.length})</h3>
         </div>
         <div class="slfa-table-wrap">
             <table class="slfa-table modal-entries-table">
                 <thead>
                     <tr>
                         <th class="col-num">#</th>
-                        <th>Work Date / Submitted</th>
-                        <th>Location / Subpart</th>
-                        <th>Engineer</th>
-                        <th>Qty</th>
-                        <th>Unit Price</th>
-                        <th>Total</th>
-                        <th>Status</th>
+                        <th>${tr('work_date_submitted', 'Work Date / Submitted')}</th>
+                        <th>${tr('location_subpart', 'Location / Subpart')}</th>
+                        <th>${tr('engineer', 'Engineer')}</th>
+                        <th>${tr('quantity', 'Qty')}</th>
+                        <th>${tr('unit_price', 'Unit Price')}</th>
+                        <th>${tr('total', 'Total')}</th>
+                        <th>${tr('status', 'Status')}</th>
                     </tr>
                 </thead>
                 <tbody>${entryRows}</tbody>
@@ -968,6 +977,45 @@ function renderPaymentDetailModal(payment, entries) {
     `;
 }
 
+// ─── Print payment detail ────────────────────────────────────────────────
+function printPaymentDetail() {
+    const title = document.getElementById('modal-title').textContent;
+    const sub   = document.getElementById('modal-subtitle').textContent;
+    const body  = document.getElementById('payment-detail-body').innerHTML;
+
+    const win = window.open('', '_blank');
+    if (!win) return;
+    win.document.write('<html><head><title>' + escHtml(title) + '</title><style>'
+        + 'body{font-family:sans-serif;padding:24px;color:#111;}'
+        + 'h2{margin:0 0 4px;}'
+        + '.sub{color:#555;margin:0 0 20px;font-size:13px;}'
+        + 'table{border-collapse:collapse;width:100%;margin-top:8px;}'
+        + 'th,td{border:1px solid #999;padding:6px 10px;font-size:12px;text-align:left;vertical-align:top;}'
+        + 'th{background:#eee;}'
+        + '.modal-summary-grid{display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap;}'
+        + '.modal-sum-card{border:1px solid #999;border-radius:6px;padding:10px 14px;flex:1;min-width:150px;}'
+        + '.modal-sum-card i{display:none;}'
+        + '.modal-sum-card span{display:block;font-size:11px;color:#555;}'
+        + '.modal-sum-card strong{display:block;font-size:15px;margin-top:2px;}'
+        + '.modal-meta-row{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:16px;}'
+        + '.modal-meta-item{font-size:12px;}'
+        + '.modal-meta-item i{display:none;}'
+        + '.modal-meta-item span{display:block;color:#555;}'
+        + '.modal-meta-item strong{display:block;}'
+        + '.modal-entry-sub{color:#666;font-size:11px;}'
+        + '.status-badge{display:inline-block;padding:2px 6px;border:1px solid #999;border-radius:4px;font-size:11px;}'
+        + '.modal-sc-note,.modal-sc-note-rejected{font-size:10px;color:#666;margin-top:3px;}'
+        + '.modal-entries-head{margin:18px 0 4px;}'
+        + '.modal-entries-head h3{font-size:14px;margin:0;}'
+        + '</style></head><body>'
+        + '<h2>' + escHtml(title) + '</h2>'
+        + '<p class="sub">' + escHtml(sub) + ' &middot; Printed ' + escHtml(new Date().toLocaleString()) + '</p>'
+        + body
+        + '</body></html>');
+    win.document.close();
+    win.print();
+}
+
 // ─── Status Change Modal ─────────────────────────────────────────────────
 let slfaScEntryId   = null;
 let slfaScNewStatus = null;
@@ -975,7 +1023,7 @@ let slfaScNewStatus = null;
 function openSlfaStatusModal(entryId, currentStatus) {
     slfaScEntryId   = entryId;
     slfaScNewStatus = null;
-    document.getElementById('slfa-sc-current-label').textContent = 'Current: ' + capitalize(currentStatus);
+    document.getElementById('slfa-sc-current-label').textContent = tr('current', 'Current') + ': ' + statusLabel(currentStatus);
     document.querySelectorAll('.slfa-sc-status-btn').forEach(b => b.classList.remove('slfa-sc-btn-active'));
     document.getElementById('slfa-sc-save-btn').disabled = true;
     document.getElementById('slfa-sc-modal-overlay').classList.add('open');
@@ -1001,7 +1049,7 @@ function saveSlfaStatus() {
     const saveBtn  = document.getElementById('slfa-sc-save-btn');
     const origHtml = saveBtn.innerHTML;
     saveBtn.disabled = true;
-    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + escHtml(tr('saving', 'Saving...'));
     fetch('change_entry_status.php', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1013,17 +1061,17 @@ function saveSlfaStatus() {
         saveBtn.innerHTML = origHtml;
         if (data.success) {
             closeSlfaStatusModal();
-            showToast(data.message || 'Status updated.', 'success');
+            showToast(data.message || tr('status_updated', 'Status updated.'), 'success');
             loadEntries();
             refreshStakeholderStats(currentStakeholderId);
         } else {
-            showToast(data.message || 'Failed to change status.', 'error');
+            showToast(data.message || tr('failed_change_status', 'Failed to change status.'), 'error');
         }
     })
     .catch(() => {
         saveBtn.disabled = false;
         saveBtn.innerHTML = origHtml;
-        showToast('Network error. Please try again.', 'error');
+        showToast(tr('network_try_again', 'Network error. Please try again.'), 'error');
     });
 }
 
@@ -1066,6 +1114,11 @@ function formatNum(num, decimals = 2) {
 function capitalize(str) {
     const s = String(str || '');
     return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function statusLabel(status) {
+    const key = String(status || '').toLowerCase();
+    return tr(key, capitalize(key));
 }
 </script>
 </body>

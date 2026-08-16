@@ -15,7 +15,7 @@
 .building-actions, .floor-actions, .apt-actions {
     display: flex;
     gap: 6px;
-    margin-left: auto;
+    margin-inline-start: auto;
 }
 
 .action-btn {
@@ -521,14 +521,44 @@
     display: block;
     padding: 15px;
     min-height: 0;
-    border-left: 3px solid rgba(96, 165, 250, 0.85);
+    border-inline-start: 3px solid rgba(96, 165, 250, 0.85);
     background: transparent;
 }
 
 #project-settings-page #work-types-settings-section .work-type-card-content {
     display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+#project-settings-page #work-types-settings-section .work-type-thumb {
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: rgba(59, 130, 246, 0.12);
+    border: 1px solid rgba(96, 165, 250, 0.25);
+    color: #60a5fa;
+    font-size: 1.3rem;
+}
+
+#project-settings-page #work-types-settings-section .work-type-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+#project-settings-page #work-types-settings-section .work-type-info {
+    display: flex;
     flex-direction: column;
     gap: 10px;
+    min-width: 0;
+    flex: 1;
 }
 
 #project-settings-page #work-types-settings-section .work-type-top-row {
@@ -589,9 +619,25 @@
 }
 
 #project-settings-page #work-types-settings-section .work-type-header .building-actions {
-    margin-left: 0;
+    margin-inline-start: 0;
     display: flex;
     align-items: center;
+}
+
+#project-settings-page #work-types-settings-section .work-type-header .action-btn.edit-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
+    border: 1px solid rgba(16, 185, 129, 0.55);
+    background: rgba(16, 185, 129, 0.18);
+    color: #a7f3d0;
+}
+
+#project-settings-page #work-types-settings-section .work-type-header .action-btn.edit-btn:hover {
+    background: rgba(16, 185, 129, 0.3);
+    border-color: rgba(52, 211, 153, 0.95);
+    color: #fff;
+    transform: translateY(-1px);
 }
 
 #project-settings-page #work-types-settings-section .work-type-header .action-btn.delete-btn {

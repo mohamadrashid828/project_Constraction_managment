@@ -13,6 +13,113 @@ body {
     color: #fff;
 }
 
+/* Shared language controls and the structural RTL rules used by Arabic and
+   Sorani. Logical properties keep the layout correct without duplicating each
+   page stylesheet. */
+.language-switcher {
+    position: static;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 10px;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(17, 24, 39, 0.90));
+    color: #e2e8f0;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.language-switcher:focus-within {
+    border-color: rgba(96, 165, 250, 0.8);
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2), 0 8px 22px rgba(0, 0, 0, 0.18);
+}
+
+.language-switcher label {
+    font-size: .72rem;
+    opacity: .9;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+}
+
+.language-switcher select {
+    width: 100%;
+    max-width: 150px;
+    padding: 6px 8px;
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 7px;
+    background: rgba(15, 23, 42, 0.9);
+    color: #f8fafc;
+    font: inherit;
+    font-size: .82rem;
+    outline: none;
+    cursor: pointer;
+}
+
+.language-switcher select option {
+    background: #0f172a;
+    color: #f8fafc;
+}
+
+.language-switcher-sidebar {
+    margin-bottom: 10px;
+}
+
+html[dir="rtl"] .language-switcher {
+    direction: rtl;
+}
+
+html[dir="rtl"] body { font-family: Tahoma, Arial, sans-serif; }
+html[dir="rtl"] .sidebar {
+    left: auto;
+    right: 0;
+    inset-inline-start: 0;
+    inset-inline-end: auto;
+    border-inline-start: 0;
+    border-inline-end: 1px solid rgba(255, 255, 255, 0.08);
+}
+html[dir="rtl"] .main-content { margin-inline-start: 280px; margin-inline-end: 0; }
+html[dir="rtl"] .sidebar-menu li.active a {
+    border-inline-start: 0;
+    border-inline-end: 3px solid #60a5fa;
+    padding-inline-start: 16px;
+    padding-inline-end: 13px;
+}
+html[dir="rtl"] .page-header,
+html[dir="rtl"] .main-content,
+html[dir="rtl"] table th,
+html[dir="rtl"] table td { text-align: start; }
+
+html[dir="rtl"] .page-header {
+    flex-direction: row-reverse;
+    direction: rtl;
+}
+
+html[dir="rtl"] .page-header h1 {
+    flex-direction: row-reverse;
+    direction: rtl;
+}
+
+html[dir="rtl"] .page-header h1 i {
+    order: 2;
+}
+
+html[dir="rtl"] .user-info {
+    flex-direction: row-reverse;
+    direction: rtl;
+}
+
+@media (max-width: 1100px) {
+    html[dir="rtl"] .main-content { margin-inline-start: 240px; }
+}
+
+@media (max-width: 768px) {
+    html[dir="rtl"] .main-content { margin-inline-start: 0; }
+    html[dir="rtl"] .sidebar { left: auto; right: -280px; inset-inline-start: -280px; }
+    html[dir="rtl"] .sidebar.mobile-open { left: auto; right: 0; inset-inline-start: 0; }
+}
+
 .login-page {
     width: min(96vw, 1120px);
     margin: 2rem auto;
@@ -1488,7 +1595,7 @@ body {
 }
 
 .apartments-section {
-    margin-left: 1rem;
+    margin-inline-start: 1rem;
 }
 
 .apartments-header {
@@ -1866,5 +1973,471 @@ body.with-sidebar {
 
     .sidebar-header h2 {
         font-size: 1.2rem;
+    }
+}
+
+/* Modern login page: intentionally scoped so shared application styles stay unchanged. */
+.login-modern {
+    --navy-950: #061331;
+    --navy-900: #091b43;
+    --blue-500: #3f73f5;
+    --ink: #11264e;
+    --muted: #7b89a5;
+    --line: #dce3ef;
+    --surface: #ffffff;
+    width: min(100%, 1240px);
+    margin: 0 auto;
+    padding: 28px;
+}
+
+.login-modern-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1.04fr) minmax(420px, 0.96fr);
+    min-height: min(720px, calc(100vh - 56px));
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 18px;
+    background: var(--surface);
+    box-shadow: 0 28px 80px rgba(3, 16, 45, 0.32);
+}
+
+.login-modern .login-visual {
+    position: relative;
+    min-height: 100%;
+    overflow: hidden;
+    padding: 46px 52px 34px;
+    color: #fff;
+    background: radial-gradient(circle at 76% 71%, rgba(40, 95, 224, 0.42), transparent 30%), linear-gradient(145deg, var(--navy-900), var(--navy-950));
+}
+
+.login-modern .login-visual::before,
+.login-modern .login-visual::after {
+    content: '';
+    position: absolute;
+    pointer-events: none;
+    border: 1px solid rgba(89, 135, 241, 0.15);
+    border-radius: 50%;
+}
+
+.login-modern .login-visual::before {
+    width: 550px;
+    height: 550px;
+    top: -360px;
+    right: -180px;
+}
+
+.login-modern .login-visual::after {
+    width: 760px;
+    height: 760px;
+    right: -380px;
+    bottom: -560px;
+}
+
+.login-modern .visual-topline,
+.login-modern .visual-copy,
+.login-modern .visual-footer {
+    position: relative;
+    z-index: 3;
+}
+
+.login-modern .visual-topline {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.login-modern .visual-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    color: #fff;
+    text-decoration: none;
+}
+
+.login-modern .visual-brand-mark {
+    display: grid;
+    place-items: center;
+    width: 43px;
+    height: 47px;
+    border: 1px solid #5d8bff;
+    border-radius: 12px 4px 12px 4px;
+    color: #5d8bff;
+    font-size: 1.35rem;
+    transform: rotate(-5deg);
+}
+
+.login-modern .visual-brand strong {
+    display: block;
+    font-family: 'Manrope', sans-serif;
+    font-size: 1.48rem;
+    letter-spacing: 0.13em;
+}
+
+.login-modern .visual-brand small {
+    display: block;
+    margin-top: 1px;
+    color: #5d8bff;
+    font-size: 0.72rem;
+}
+
+.login-modern .project-index {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    color: #8295bf;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+}
+
+.login-modern .project-index i {
+    display: block;
+    width: 25px;
+    height: 1px;
+    background: #3f73f5;
+}
+
+.login-modern .visual-copy {
+    margin-top: 86px;
+    max-width: 390px;
+}
+
+.login-modern .visual-kicker,
+.login-modern .form-kicker {
+    color: #5d8bff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.login-modern .visual-copy h1 {
+    margin-top: 18px;
+    font-family: 'Manrope', sans-serif;
+    font-size: clamp(2.2rem, 4vw, 3.65rem);
+    line-height: 1.07;
+    letter-spacing: 0;
+}
+
+.login-modern .visual-copy h1 span {
+    color: #5d8bff;
+}
+
+.login-modern .visual-description {
+    max-width: 335px;
+    margin-top: 24px;
+    color: #b7c6e4;
+    font-size: 0.92rem;
+    line-height: 1.7;
+}
+
+.login-modern .architecture-frame {
+    position: absolute;
+    right: 4%;
+    bottom: 62px;
+    z-index: 1;
+    width: min(76%, 500px);
+    height: 38%;
+    min-height: 220px;
+    overflow: hidden;
+    border: 1px solid rgba(98, 143, 242, 0.3);
+    background: radial-gradient(circle at center, rgba(38, 101, 238, 0.27), transparent 65%);
+}
+
+.login-modern .architecture-frame::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(6, 19, 49, 0.1), rgba(6, 19, 49, 0.72));
+    pointer-events: none;
+}
+
+.login-modern .architecture-frame img {
+    position: absolute;
+    right: -2%;
+    bottom: -9%;
+    width: 95%;
+    max-width: 510px;
+    mix-blend-mode: screen;
+    opacity: 0.68;
+    filter: grayscale(1) sepia(0.25) hue-rotate(170deg) saturate(2.1) contrast(1.2) brightness(1.25);
+}
+
+.login-modern .frame-label,
+.login-modern .frame-coordinate {
+    position: absolute;
+    z-index: 2;
+    color: #91a9dc;
+    font-size: 0.58rem;
+    letter-spacing: 0.13em;
+}
+
+.login-modern .frame-label {
+    top: 15px;
+    left: 16px;
+}
+
+.login-modern .frame-coordinate {
+    right: 16px;
+    bottom: 14px;
+}
+
+.login-modern .frame-line {
+    position: absolute;
+    z-index: 2;
+    background: #4b80f5;
+}
+
+.login-modern .frame-line-left {
+    top: 42px;
+    bottom: 40px;
+    left: 16px;
+    width: 1px;
+}
+
+.login-modern .frame-line-bottom {
+    right: 16px;
+    bottom: 31px;
+    left: 16px;
+    height: 1px;
+}
+
+.login-modern .visual-footer {
+    position: absolute;
+    right: 52px;
+    bottom: 32px;
+    left: 52px;
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    color: #94a8d0;
+    font-size: 0.72rem;
+}
+
+.login-modern .visual-footer i {
+    margin-right: 6px;
+    color: #67c48d;
+}
+
+.login-modern .login-modern-form {
+    justify-content: center;
+    padding: 64px clamp(42px, 7vw, 82px);
+    background: #fbfcff;
+}
+
+.login-modern .form-intro {
+    width: 100%;
+}
+
+.login-modern .form-icon {
+    display: grid;
+    place-items: center;
+    width: 55px;
+    height: 55px;
+    margin-bottom: 25px;
+    border-radius: 50%;
+    color: #386eea;
+    background: #edf3ff;
+    font-size: 1.35rem;
+}
+
+.login-modern .form-intro h2 {
+    margin-top: 11px;
+    color: var(--ink);
+    font-family: 'Manrope', sans-serif;
+    font-size: 2.05rem;
+    letter-spacing: 0;
+}
+
+.login-modern .form-intro > p:last-child {
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.login-modern .login-form {
+    width: 100%;
+    gap: 17px;
+    margin-top: 34px;
+}
+
+.login-modern .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.login-modern .field-group label {
+    color: #23345a;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.login-modern .field-label-row {
+    display: flex;
+    justify-content: space-between;
+}
+
+.login-modern .field-hint {
+    color: #a0abc0;
+    font-size: 0.7rem;
+}
+
+.login-modern .field-control {
+    position: relative;
+}
+
+.login-modern .field-control > i {
+    position: absolute;
+    top: 50%;
+    left: 15px;
+    z-index: 1;
+    color: #7890c9;
+    transform: translateY(-50%);
+}
+
+.login-modern .field-control input {
+    width: 100%;
+    padding: 14px 44px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 0.84rem;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.login-modern .field-control input:focus {
+    border-color: var(--blue-500);
+    box-shadow: 0 0 0 4px rgba(63, 115, 245, 0.12);
+}
+
+.login-modern .password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 14px;
+    border: 0;
+    color: #8290ab;
+    background: transparent;
+    cursor: pointer;
+    transform: translateY(-50%);
+}
+
+.login-modern .login-submit {
+    width: 100%;
+    justify-content: space-between;
+    margin-top: 8px;
+    padding: 15px 17px;
+    border-radius: 8px;
+    background: linear-gradient(105deg, #2e65ed, #1638a7);
+    box-shadow: 0 12px 24px rgba(34, 83, 216, 0.23);
+}
+
+.login-modern .login-submit:hover {
+    background: linear-gradient(105deg, #275be0, #123198);
+    box-shadow: 0 16px 28px rgba(34, 83, 216, 0.3);
+}
+
+.login-modern .error-message {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-top: 24px;
+    margin-bottom: -13px;
+    border-color: #f3c4c0;
+    color: #a13934;
+    background: #fff2f1;
+}
+
+.login-modern .form-bottom {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    margin-top: 25px;
+    color: #8b98b0;
+    font-size: 0.7rem;
+}
+
+.login-modern .form-bottom i {
+    margin-right: 4px;
+    color: #5b85e8;
+}
+
+@media (max-width: 860px) {
+    .login-modern {
+        padding: 0;
+    }
+
+    .login-modern-card {
+        grid-template-columns: 1fr;
+        min-height: 100vh;
+        border-radius: 0;
+    }
+
+    .login-modern .login-visual {
+        min-height: 540px;
+        padding: 34px 28px;
+    }
+
+    .login-modern .visual-copy {
+        max-width: 430px;
+        margin-top: 55px;
+    }
+
+    .login-modern .visual-copy h1 {
+        font-size: 2.65rem;
+    }
+
+    .login-modern .visual-description {
+        max-width: 340px;
+        margin-top: 16px;
+        font-size: 0.84rem;
+    }
+
+    .login-modern .architecture-frame {
+        right: 28px;
+        width: min(72%, 430px);
+        height: 165px;
+        top: 326px;
+        bottom: auto;
+    }
+
+    .login-modern .visual-footer {
+        right: 28px;
+        bottom: 22px;
+        left: 28px;
+    }
+
+    .login-modern .login-modern-form {
+        padding: 48px 28px;
+    }
+}
+
+@media (max-width: 480px) {
+    .login-modern .login-visual {
+        min-height: 500px;
+    }
+
+    .login-modern .project-index,
+    .login-modern .visual-footer > span:last-child {
+        display: none;
+    }
+
+    .login-modern .visual-copy {
+        margin-top: 50px;
+    }
+
+    .login-modern .visual-copy h1 {
+        font-size: 2.2rem;
+    }
+
+    .login-modern .architecture-frame {
+        right: 0;
+        width: 92%;
+        height: 145px;
+        top: 302px;
+        bottom: auto;
     }
 }

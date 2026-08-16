@@ -2,27 +2,371 @@
     width: 100%;
 }
 
-.users-panel, .user-form-panel, .user-table-panel {
-    background: rgba(24, 35, 67, 0.64);
-    border: 1px solid rgba(148, 163, 184, 0.28);
-    backdrop-filter: blur(10px);
-}
-
-#users-page .data-table {
-    border-radius: 10px;
-    overflow: hidden;
-    width: 100%;
-}
-
-#users-page .form-control,
-#users-page .filter-control {
-    width: 100%;
-    max-width: 350px;
-    margin-bottom: 0.9rem;
-}
-
-#users-page .form-actions {
+#users-page .content-wrapper {
     display: flex;
-    gap: 0.8rem;
+    flex-direction: column;
+    gap: 28px;
+    padding-bottom: 28px;
+}
+
+#users-page .panel-shell {
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.88), rgba(15, 23, 42, 0.74));
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+}
+
+#users-page .panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
     flex-wrap: wrap;
+    margin-bottom: 24px;
+}
+
+#users-page .panel-head h2,
+#users-page .panel-head h3 {
+    margin: 0;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.15rem;
+}
+
+#users-page .panel-head h2 i,
+#users-page .panel-head h3 i {
+    color: #60a5fa;
+}
+
+#users-page .panel-subtext {
+    color: #cbd5e1;
+    max-width: 680px;
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+#users-page .user-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 18px;
+}
+
+#users-page .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#users-page .form-field label {
+    color: #cbd5e1;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+#users-page .user-form-input,
+#users-page .user-form-select,
+#users-page .user-form-textarea {
+    width: 100%;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    color: #fff;
+    font-size: 0.94rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+#users-page .user-form-input:focus,
+#users-page .user-form-select:focus,
+#users-page .user-form-textarea:focus {
+    outline: none;
+    border-color: rgba(96, 165, 250, 0.5);
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.15);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+#users-page .user-form-input::placeholder,
+#users-page .user-form-textarea::placeholder {
+    color: #64748b;
+}
+
+#users-page .user-form-actions {
+    display: flex;
+    gap: 12px;
+    grid-column: 1 / -1;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+#users-page .user-btn,
+#users-page .user-btn-secondary,
+#users-page .user-btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 10px;
+    font-size: 0.92rem;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 12px 22px;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    text-decoration: none;
+}
+
+#users-page .user-btn {
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    color: #fff;
+    border: 1px solid rgba(59, 130, 246, 0.5);
+    box-shadow: 0 10px 24px rgba(37, 99, 235, 0.22);
+}
+
+#users-page .user-btn-secondary {
+    background: rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+#users-page .user-btn-ghost {
+    background: rgba(96, 165, 250, 0.09);
+    color: #93c5fd;
+    border: 1px solid rgba(96, 165, 250, 0.3);
+}
+
+#users-page .user-btn:hover,
+#users-page .user-btn-secondary:hover,
+#users-page .user-btn-ghost:hover {
+    transform: translateY(-1px);
+}
+
+#users-page .users-table-wrap {
+    max-height: 520px;
+    overflow-y: auto;
+    overflow-x: auto;
+    padding-right: 8px;
+}
+
+#users-page .users-table {
+    width: 100%;
+    color: #cbd5e1;
+    border-collapse: collapse;
+}
+
+#users-page .users-table th,
+#users-page .users-table td {
+    padding: 14px 12px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    vertical-align: middle;
+}
+
+#users-page .users-table th {
+    color: #94a3b8;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    background: rgba(15, 23, 42, 0.35);
+}
+
+#users-page .user-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+#users-page .badge-role {
+    background: rgba(139, 92, 246, 0.18);
+    color: #c4b5fd;
+}
+
+#users-page .badge-user {
+    background: rgba(96, 165, 250, 0.18);
+    color: #93c5fd;
+}
+
+#users-page .badge-status-active {
+    background: rgba(16, 185, 129, 0.16);
+    color: #6ee7b7;
+}
+
+#users-page .badge-status-inactive {
+    background: rgba(239, 68, 68, 0.14);
+    color: #fca5a5;
+}
+
+#users-page .user-action-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+#users-page .user-action-btn {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    color: #fff;
+}
+
+#users-page .user-action-edit {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+#users-page .user-action-menu-btn {
+    padding: 8px 10px;
+    background: rgba(96, 165, 250, 0.16);
+    color: #93c5fd;
+    border: 1px solid rgba(96, 165, 250, 0.3);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+#users-page .actions-menu {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    margin-top: 6px;
+    min-width: 180px;
+    background: rgba(15, 23, 42, 0.97);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+    z-index: 1000;
+    overflow: hidden;
+}
+
+#users-page .menu-item {
+    padding: 10px 16px;
+    color: #e2e8f0;
+    cursor: pointer;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.2s ease;
+}
+
+#users-page .menu-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+#users-page .roles-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+#users-page .role-box {
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 22px;
+}
+
+#users-page .role-box h3 {
+    color: #fff;
+    margin-bottom: 16px;
+    font-size: 1.05rem;
+}
+
+#users-page .role-reset-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+#users-page .role-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    background: rgba(99, 102, 241, 0.14);
+    color: #c7d2fe;
+}
+
+#users-page .module-permission-list {
+    display: grid;
+    gap: 12px;
+}
+
+#users-page .module-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 12px 14px;
+}
+
+#users-page .module-title {
+    color: #94a3b8;
+    font-size: 0.74rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+}
+
+#users-page .perm-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+}
+
+#users-page .perm-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 10px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    color: #cbd5e1;
+    font-size: 0.88rem;
+}
+
+#users-page .perm-item input {
+    accent-color: #60a5fa;
+}
+
+@media (max-width: 900px) {
+    #users-page .roles-grid {
+        grid-template-columns: 1fr;
+    }
+
+    #users-page .panel-shell {
+        padding: 20px;
+    }
+}
+
+@media (max-width: 640px) {
+    #users-page .panel-head {
+        align-items: flex-start;
+    }
+
+    #users-page .user-form-actions {
+        flex-direction: column;
+    }
+
+    #users-page .user-btn,
+    #users-page .user-btn-secondary,
+    #users-page .user-btn-ghost {
+        width: 100%;
+    }
 }
